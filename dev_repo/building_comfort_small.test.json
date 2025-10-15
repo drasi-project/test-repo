@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "description": "Building Comfort Model Small.",
+  "test_folder": "building_comfort",
+  "queries": [
+    {
+      "test_query_id": "room-comfort-level",
+      "result_stream_handler": {
+        "kind": "RedisStream",
+        "host": "drasi-redis",
+        "port": 6379,
+        "stream_name": "room-comfort-level-results",
+        "process_old_entries": false
+      },
+      "stop_trigger": {
+        "kind": "RecordCount",
+        "record_count": 50
+      }
+    }
+  ],
+  "sources": [
+    {
+      "test_source_id": "facilities-db",
+      "kind": "Model",
+      "source_change_dispatchers": [   
+        {
+          "kind": "Dapr",
+          "host" : "127.0.0.1",
+          "port" : 3500,
+          "pubsub_name" : "drasi-pubsub"    
+        }
+      ],
+      "model_data_generator": {
+        "kind": "BuildingHierarchy",
+        "change_count": 100,
+        "change_interval": [2000000000, 500000000, 500000000, 4000000000],
+        "seed": 123456789,
+        "spacing_mode": "none",
+        "time_mode": "2025-03-01T10:00:00.0Z",
+        "building_count": [1, 0],
+        "floor_count": [1, 0],
+        "room_count": [5, 0],                   
+        "room_sensors": [
+          {
+            "kind": "NormalFloat",
+            "id": "temperature",
+            "momentum_init": [5, 1, 0.5],
+            "value_change": [1, 0.5],
+            "value_init": [72, 5],
+            "value_range": [20, 110]
+          },
+          {
+            "kind": "NormalFloat",
+            "id": "co2",
+            "momentum_init": [10, 1, 0.5],
+            "value_change": [20, 5.0],
+            "value_init": [100, 10],
+            "value_range": [50, 1000]
+          },
+          {
+            "kind": "NormalFloat",
+            "id": "humidity",
+            "momentum_init": [5, 1, 0.5],
+            "value_change": [1, 0.5],
+            "value_init": [42, 3],
+            "value_range": [0, 100]
+          }
+        ]
+      },
+      "subscribers": [
+        { "node_id": "default", "query_id": "room-comfort-level" }
+      ]
+    }    
+  ]
+}
