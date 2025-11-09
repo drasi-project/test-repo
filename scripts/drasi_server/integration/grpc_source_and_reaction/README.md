@@ -1,17 +1,17 @@
 # Drasi Server gRPC Integration Test
 
-This is a self-contained integration test for the Drasi Server with gRPC source and reaction endpoints. The test validates the complete data flow from source generation through query processing to reaction delivery.
+This is a self-contained integration test for Drasi Server that validates the complete end-to-end data flow using gRPC source and reaction endpoints.
 
 ## Purpose
 
 This test validates:
-- gRPC source integration (port 50051)
-- Continuous query processing with Cypher
-- gRPC reaction delivery (port 50052)
-- Building Comfort model data generation
-- End-to-end data flow through Drasi Server
+- **gRPC Source Integration**: Data ingestion via gRPC on port 50051
+- **Continuous Query Processing**: Cypher query execution with real-time updates
+- **gRPC Reaction Delivery**: Query results pushed via gRPC on port 50052
+- **Building Comfort Model**: Synthetic sensor data generation (temperature, CO2, humidity)
+- **Performance**: End-to-end throughput and latency measurement
 
-The test generates synthetic building comfort data (temperature, CO2, humidity sensors) and verifies that Drasi Server correctly processes changes and delivers results via gRPC.
+Use this test to verify that changes to Drasi Server haven't broken the core gRPC integration pathways.
 
 ## Architecture
 
@@ -19,6 +19,7 @@ The test generates synthetic building comfort data (temperature, CO2, humidity s
 ┌─────────────────────┐
 │  E2E Test Framework │
 │  (test-service)     │
+│  Port: 63123        │
 │                     │
 │  ┌───────────────┐  │
 │  │ Data Generator│  │
@@ -32,10 +33,11 @@ The test generates synthetic building comfort data (temperature, CO2, humidity s
            ▼
 ┌─────────────────────┐
 │   Drasi Server      │
-│   (port 8080)       │
+│   Port: 8080 (API)  │
 │                     │
 │  ┌───────────────┐  │
 │  │ gRPC Source   │  │
+│  │   :50051      │  │
 │  └───────┬───────┘  │
 │          │          │
 │  ┌───────▼───────┐  │
@@ -45,6 +47,7 @@ The test generates synthetic building comfort data (temperature, CO2, humidity s
 │          │          │
 │  ┌───────▼───────┐  │
 │  │ gRPC Reaction │  │
+│  │   :50052      │  │
 │  └───────┬───────┘  │
 └──────────┼──────────┘
            │ gRPC
@@ -74,123 +77,17 @@ parent/
   drasi-test-repo/       # This repository
 ```
 
-## Configuration Files
+The test scripts automatically navigate to these directories using relative paths.
 
-### server-config.yaml
+## Quick Start
 
-Configures the Drasi Server with:
-- **Server**: API on port 8080, logging, persistence disabled
-- **Server Core**: Priority queue capacity settings
-- **Sources**: gRPC source endpoint on port 50051 with keepalive and connection settings
-- **Queries**: Cypher query returning Room entities with their properties
-- **Reactions**: gRPC reaction endpoint on port 50052 with batching, retry, and metadata settings
+### Run the Test
 
-```yaml
-server:
-  host: 0.0.0.0
-  port: 8080
-  log_level: drasi_server=info,drasi_core=warn
-  disable_persistence: true
-
-server_core:
-  priority_queue_capacity: 10000
-
-sources:
-- id: facilities-db
-  source_type: grpc
-  auto_start: true
-  keepalive_interval_seconds: 10
-  keepalive_timeout_seconds: 10
-  host: 0.0.0.0
-  port: 50051
-  max_message_size: 8388608
-  max_connections: 100
-
-queries:
-- id: building-comfort
-  query: |
-    MATCH
-      (r:Room)
-    RETURN
-      elementId(r) AS RoomId,
-      r.temperature, r.humidity, r.co2
-  sources:
-  - facilities-db
-  auto_start: true
-
-reactions:
-- id: rooms-grpc
-  reaction_type: grpc
-  queries:
-  - building-comfort
-  auto_start: true
-  endpoint: http://127.0.0.1:50052
-  batch_flush_timeout_ms: 100
-  compression: false
-  batch_size: 1000
-  keepalive:
-    interval_seconds: 10
-    timeout_seconds: 10
-  metadata:
-    x-api-key: test-key-12345
-    x-client-id: drasi-test
-  max_retries: 3
-  timeout_ms: 5000
-  retry_delay_ms: 500
-  tls:
-    enabled: false
-```
-
-### e2etf-config.json
-
-Configures the E2E Test Framework with:
-- **Test Data Cache**: Stored in `test_data_store/` subdirectory (overridden by `--data` command-line argument)
-- **Test Repository**: References `dev_repo/` from drasi-test-repo
-- **Data Generator**: Building Hierarchy model
-  - 1 building, 1 floor, 1 room
-  - 1,000 change events
-  - 3 sensors per room (temperature, CO2, humidity)
-- **Source Dispatcher**: gRPC to localhost:50051
-- **Reaction Handler**: gRPC on port 50052
-- **Stop Trigger**: After receiving 1,000 records
-
-Key settings:
-```json
-{
-  "data_store": {
-    "data_store_path": "./test_data_cache",
-    "delete_on_start": true,
-    "delete_on_stop": true
-  },
-  "test_repos": [{
-    "source_path": "../../../../../drasi-test-repo/dev_repo"
-  }]
-}
-```
-
-**Note**: The `data_store_path` in the config is overridden by the `--data` command-line argument passed by `start.sh`, which sets it to `test_data_store/` in the script's directory.
-
-## Running the Test
-
-### Start the Test
-
-From the test directory:
 ```bash
 ./start.sh
 ```
 
-The script will:
-1. Check if required ports (8080, 50051, 50052) are available
-2. Build drasi-server (debug mode) from `../../../../../drasi-server`
-3. Remove old log file if it exists
-4. Start drasi-server with the local `server-config.yaml`
-5. Wait for server health check on port 8080
-6. Build and run E2E test framework from `../../../../../drasi-test-infra/e2e-test-framework`
-7. Execute the test with `e2etf-config.json` and data stored in `test_data_store/`
-8. Display test progress and results
-9. Clean up and report final status
-
-**Expected output:**
+Expected output:
 ```
 Starting Drasi Server Test - gRPC (Debug Mode)
 ================================================
@@ -198,179 +95,482 @@ Checking port availability...
 All required ports are available
 Found Drasi Server at: /path/to/drasi-server
 Found E2E Test Framework at: /path/to/e2e-test-framework
-Cleaning up any existing processes...
-Building Drasi Server (Debug)...
-Removing old log file...
-Starting Drasi Server with debug logging...
-Drasi Server PID: 12345
-Drasi Server log: /path/to/drasi-server-debug.log
-Waiting for Drasi Server to be ready...
-Drasi Server is ready!
-Starting E2E Test Framework (Debug)...
 ...
 Test completed successfully!
 ```
 
+The test will automatically:
+1. Check port availability (8080, 50051, 50052, 63123)
+2. Build and start Drasi Server
+3. Build and run E2E Test Framework
+4. Generate 1,000 sensor change events
+5. Verify 1,000 query results are delivered
+6. Report performance metrics
+7. Clean up processes
+
 ### Stop the Test
 
-If you need to manually stop the test:
 ```bash
 ./stop.sh
 ```
 
-This script will:
-- Gracefully terminate drasi-server processes
-- Gracefully terminate test-service processes
-- Force kill processes on ports 8080, 50051, 50052 if needed
-- Preserve log files for debugging
+This gracefully terminates all processes and cleans up ports. Run this if:
+- The test hangs or fails
+- You need to interrupt a running test
+- You get "port already in use" errors
 
-## Test Logs
+## Files Overview
 
-### Drasi Server Logs
-- **Location**: `drasi-server-debug.log`
-- **Content**: Server startup, source connections, query execution, reaction delivery
-- **Log Level**: Debug (controlled by RUST_LOG=debug in start.sh)
+### Configuration Files
 
-### E2E Test Framework Logs
-- **Console Output**: Real-time test progress
-- **Performance Metrics**: Stored in `test_data_cache/test_runs/.../performance_metrics/`
-- **Source Change Log**: Stored in `test_data_cache/test_runs/.../sources/facilities-db/`
+| File | Purpose |
+|------|---------|
+| `server-config.yaml` | Drasi Server configuration (sources, queries, reactions) |
+| `e2etf-config.json` | E2E Test Framework configuration (test data, generators, triggers) |
+
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `start.sh` | Builds and runs the complete integration test |
+| `stop.sh` | Stops all processes and cleans up ports |
+
+### Log Files (Generated)
+
+| File | Content |
+|------|---------|
+| `drasi-server-debug.log` | Drasi Server debug logs (RUST_LOG=debug) |
+| `test-service-debug.log` | E2E Test Framework debug logs (RUST_LOG=debug) |
+
+### Data Directory (Generated)
+
+| Directory | Content |
+|-----------|---------|
+| `test_data_store/` | Test run data, performance metrics, source change logs (auto-deleted on start/stop) |
+
+## Configuration Details
+
+### server-config.yaml
+
+Configures Drasi Server with three main sections:
+
+**Server Configuration:**
+```yaml
+server:
+  host: 0.0.0.0
+  port: 8080                    # Health check and Web API
+  log_level: drasi_server=info,drasi_core=warn
+  disable_persistence: true     # No disk persistence needed for tests
+```
+
+**Source Configuration:**
+```yaml
+sources:
+- id: facilities-db
+  source_type: grpc
+  auto_start: true              # Start when server starts
+  port: 50051                   # gRPC source endpoint
+  max_message_size: 8388608     # 8MB max message
+  max_connections: 100
+  keepalive_interval_seconds: 10
+  keepalive_timeout_seconds: 10
+```
+
+**Query Configuration:**
+```yaml
+queries:
+- id: building-comfort
+  query: |
+    MATCH (r:Room)
+    RETURN elementId(r) AS RoomId,
+           r.temperature, r.humidity, r.co2
+  sources:
+  - facilities-db
+  auto_start: true
+```
+
+**Reaction Configuration:**
+```yaml
+reactions:
+- id: rooms-grpc
+  reaction_type: grpc
+  queries:
+  - building-comfort
+  auto_start: true
+  endpoint: http://127.0.0.1:50052
+  batch_size: 1000
+  batch_flush_timeout_ms: 100
+  max_retries: 3
+  timeout_ms: 5000
+  metadata:
+    x-api-key: test-key-12345
+    x-client-id: drasi-test
+```
+
+### e2etf-config.json
+
+Configures the E2E Test Framework:
+
+**Data Store:**
+```json
+{
+  "data_store_path": "./test_data_cache",  // Overridden by --data flag
+  "delete_on_start": true,                 // Clean cache on start
+  "delete_on_stop": true                   // Clean cache on stop
+}
+```
+
+**Test Source (Data Generator):**
+```json
+{
+  "test_source_id": "facilities-db",
+  "kind": "Model",
+  "model_data_generator": {
+    "kind": "BuildingHierarchy",
+    "building_count": [1, 0],        // 1 building, no variance
+    "floor_count": [1, 0],           // 1 floor per building
+    "room_count": [1, 0],            // 1 room per floor
+    "change_count": 1000,            // Generate 1,000 change events
+    "room_sensors": [
+      {"kind": "NormalFloat", "id": "temperature"},
+      {"kind": "NormalFloat", "id": "co2"},
+      {"kind": "NormalFloat", "id": "humidity"}
+    ]
+  },
+  "source_change_dispatchers": [{
+    "kind": "Grpc",
+    "host": "localhost",
+    "port": 50051,
+    "source_id": "facilities-db"
+  }]
+}
+```
+
+**Test Reaction (Result Handler):**
+```json
+{
+  "test_reaction_id": "building-comfort",
+  "output_handler": {
+    "kind": "Grpc",
+    "host": "0.0.0.0",
+    "port": 50052,
+    "query_ids": ["building-comfort"]
+  },
+  "stop_triggers": [{
+    "kind": "RecordCount",
+    "record_count": 1000           // Stop after receiving 1,000 results
+  }]
+}
+```
 
 ## Ports Used
 
-| Port  | Service | Description |
-|-------|---------|-------------|
-| 8080  | Drasi Server API | Health check and management API |
-| 50051 | gRPC Source | E2ETF sends data changes to Drasi |
-| 50052 | gRPC Reaction | Drasi sends query results to E2ETF |
+| Port | Service | Direction | Description |
+|------|---------|-----------|-------------|
+| 8080 | Drasi Server API | Incoming | Health checks, Web API for inspection |
+| 50051 | gRPC Source | Incoming | E2ETF → Drasi (data changes) |
+| 50052 | gRPC Reaction | Outgoing | Drasi → E2ETF (query results) |
+| 63123 | Test Service API | Incoming | Web API for test control/inspection |
 
-## Test Data
+## Inspecting Running Tests
 
-The test generates a building hierarchy:
-- **Buildings**: 1
-- **Floors per Building**: 1
-- **Rooms per Floor**: 1
-- **Sensors per Room**: 3 (temperature, CO2, humidity)
-- **Change Events**: 1,000 property updates
+Both Drasi Server and the E2E Test Framework expose Web APIs for inspection and control during test execution.
 
-Each change event modifies sensor values with:
-- Random walk behavior (momentum-based changes)
-- Configurable variance
-- Value range constraints
+### Drasi Server Web API (Port 8080)
+
+Use the HTTP files in `../../../utils/drasi_server_web_api/` to interact with Drasi Server:
+
+```bash
+# Open in VS Code with REST Client extension
+code ../../../utils/drasi_server_web_api/web_api.http
+```
+
+**Available Operations:**
+- **Health Check**: `GET http://localhost:8080/health`
+- **List Sources**: `GET http://localhost:8080/sources`
+- **List Queries**: `GET http://localhost:8080/queries`
+- **List Reactions**: `GET http://localhost:8080/reactions`
+- **Query Details**: `GET http://localhost:8080/queries/{query_id}`
+- **Reaction Details**: `GET http://localhost:8080/reactions/{reaction_id}`
+
+See `../../../utils/drasi_server_web_api/` for more operations (start/stop/pause sources, queries, and reactions).
+
+### E2E Test Service Web API (Port 63123)
+
+Use the HTTP files in `../../../utils/e2etf_test_service_web_api/` to interact with the Test Framework:
+
+```bash
+# Open in VS Code with REST Client extension
+code ../../../utils/e2etf_test_service_web_api/web_api.http
+```
+
+**Available Operations:**
+- **Test Runs**: List/view test runs and their status
+- **Sources**: Control data generation (start/pause/stop/step/skip)
+- **Queries**: Monitor query execution and results
+- **Reactions**: Monitor reaction delivery and performance
+- **Test Repos**: Inspect test definitions and configurations
+
+**Example Use Cases:**
+
+1. **Pause data generation to debug query processing:**
+   ```http
+   POST http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_001/sources/facilities-db/pause
+   ```
+
+2. **Step through data one event at a time:**
+   ```http
+   POST http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_001/sources/facilities-db/step
+   Content-Type: application/json
+
+   {"num_steps": 1, "spacing_mode": "None"}
+   ```
+
+3. **Check reaction statistics:**
+   ```http
+   GET http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_001/reactions/building-comfort/profile
+   ```
+
+See `../../../utils/e2etf_test_service_web_api/README.md` for detailed API documentation.
+
+### Using the HTTP Files
+
+1. **Install REST Client extension** in VS Code:
+   - Open Extensions (Cmd+Shift+X / Ctrl+Shift+X)
+   - Search for "REST Client"
+   - Install the extension by Huachao Mao
+
+2. **Open an HTTP file** from the utils folders
+
+3. **Click "Send Request"** above any HTTP request to execute it
+
+4. **View the response** in a new editor pane
+
+## Viewing Test Results
+
+### Performance Metrics
+
+After a successful test run, performance metrics are saved to:
+```
+test_data_store/test_runs/local_dev_repo.building_comfort.test_run_001/reactions/building-comfort/output_log/performance_metrics/performance_metrics_*.json
+```
+
+Example metrics:
+```json
+{
+  "start_time_ns": 1762662358612275000,
+  "end_time_ns": 1762662358641108000,
+  "duration_ns": 28833000,
+  "record_count": 1000,
+  "records_per_second": 34682.48,
+  "test_run_reaction_id": "local_dev_repo.building_comfort.test_run_001.building-comfort",
+  "timestamp": "2025-11-09T04:25:58.641111Z"
+}
+```
+
+### Log Analysis
+
+**Check for errors in Drasi Server:**
+```bash
+grep -i error drasi-server-debug.log
+```
+
+**Check for errors in Test Service:**
+```bash
+grep -i error test-service-debug.log
+```
+
+**View source events sent to Drasi:**
+```bash
+grep "Processing gRPC event" drasi-server-debug.log | head -10
+```
+
+**View query results sent to reactions:**
+```bash
+grep "sending.*results to reactions" drasi-server-debug.log | head -10
+```
 
 ## Modifying the Test
 
 ### Change Test Size
 
-Edit `e2etf-config.json`:
+To test with more data, edit `e2etf-config.json`:
+
 ```json
 {
-  "building_count": [1, 0],     // [count, variance]
-  "floor_count": [1, 0],
-  "room_count": [5, 0],         // Increase rooms
-  "change_count": 10000         // More changes
+  "room_count": [10, 0],         // 10 rooms instead of 1
+  "change_count": 10000          // 10,000 changes instead of 1,000
 }
 ```
 
-Also update the stop trigger:
+**Important:** Also update the stop trigger to match:
 ```json
 {
   "stop_triggers": [{
     "kind": "RecordCount",
-    "record_count": 10000        // Match change_count
+    "record_count": 10000        // Must match change_count
   }]
 }
 ```
 
-### Change Sensor Behavior
+### Change Query
 
-Edit sensor definitions in `e2etf-config.json`:
-```json
-{
-  "id": "temperature",
-  "value_init": [72, 5],          // Initial: 72°F ± 5
-  "value_change": [1, 0.5],       // Change: ±1°F with variance
-  "value_range": [60, 85],        // Constrain to 60-85°F
-  "momentum_init": [5, 1, 0.5]    // Momentum settings
-}
+Edit `server-config.yaml` to modify the Cypher query:
+
+```yaml
+queries:
+- id: building-comfort
+  query: |
+    MATCH (r:Room)
+    WHERE r.temperature > 5500
+    RETURN elementId(r) AS RoomId,
+           r.temperature, r.humidity, r.co2
 ```
 
 ### Use Release Build
 
-Edit `start.sh` to build in release mode:
+For performance testing, edit `start.sh` line 82:
+
 ```bash
+# Change from:
+cargo build
+
+# To:
 cargo build --release
 ```
 
-And update the binary path:
+And update line 102:
 ```bash
-./target/release/drasi-server --config "$CONFIG_FILE"
+# Change from:
+RUST_LOG=debug ./target/debug/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
+
+# To:
+./target/release/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
 ```
 
 ## Troubleshooting
 
 ### Port Already in Use
 
-**Error**: "The following required ports are already in use"
-
-The start script automatically checks if ports 8080, 50051, and 50052 are available before running. If any port is in use, you'll see an error message like:
-
+**Symptom:**
 ```
 Error: The following required ports are already in use:
   - Port 8080 (Drasi Server API)
   - Port 50051 (gRPC Source)
+  - Port 50052 (gRPC Reaction)
+  - Port 63123 (Test Service API)
 ```
 
-**Solution**: Run `./stop.sh` to clean up existing processes:
+**Solution:**
 ```bash
 ./stop.sh
 ```
 
-**Manual cleanup** (if stop.sh doesn't work):
+If `stop.sh` doesn't resolve it:
 ```bash
+# Find and kill processes on specific ports
 lsof -ti:8080 | xargs kill -9
 lsof -ti:50051 | xargs kill -9
 lsof -ti:50052 | xargs kill -9
+lsof -ti:63123 | xargs kill -9
 ```
 
-### Test Hangs
+### Test Hangs or Fails
 
-- Check `drasi-server-debug.log` for errors
-- Verify all three components are running:
-  ```bash
-  ps aux | grep drasi-server
-  ps aux | grep test-service
-  ```
-- Check port connectivity:
-  ```bash
-  curl http://localhost:8080/health
-  ```
+**Check if processes are running:**
+```bash
+ps aux | grep drasi-server
+ps aux | grep test-service
+```
+
+**Check Drasi Server health:**
+```bash
+curl http://localhost:8080/health
+```
+
+**Review logs for errors:**
+```bash
+tail -50 drasi-server-debug.log
+tail -50 test-service-debug.log
+```
+
+**Common issues:**
+- **gRPC connection failed**: Check if ports 50051/50052 are actually listening
+- **Query not processing**: Check query syntax in `server-config.yaml`
+- **Test hangs at completion**: Check stop trigger `record_count` matches `change_count`
+
+### Build Failures
+
+**Drasi Server build fails:**
+```bash
+# Navigate to drasi-server and build manually
+cd ../../../../../drasi-server
+cargo clean
+cargo build
+```
+
+**E2E Test Framework build fails:**
+```bash
+# Navigate to e2e-test-framework and build manually
+cd ../../../../../drasi-test-infra/e2e-test-framework
+cargo clean
+cargo build --manifest-path ./test-service/Cargo.toml
+```
 
 ### Test Data Cache Issues
 
-If you encounter cache-related errors:
+If you encounter cache-related errors or want a clean slate:
 ```bash
 rm -rf test_data_store/
 ./start.sh
 ```
 
-The test data cache is stored in the `test_data_store/` subdirectory and is automatically cleaned on start/stop as configured in `e2etf-config.json` (`delete_on_start: true`, `delete_on_stop: true`).
+The test automatically cleans `test_data_store/` on start and stop (configured via `delete_on_start` and `delete_on_stop` in `e2etf-config.json`).
 
-## Performance Metrics
+## Advanced Usage
 
-After a successful test run, performance metrics are available in:
+### Running in Background
+
+To run the test in the background and monitor via logs:
+```bash
+./start.sh > test-output.log 2>&1 &
+tail -f test-output.log
 ```
-test_data_store/test_runs/local_dev_repo.building_comfort.test_run_001/reactions/building-comfort/output_log/performance_metrics/
+
+### Custom Test Data Path
+
+The `start.sh` script passes `--data ./test_data_store` to the test-service. To use a different location, modify line 138 in `start.sh`:
+
+```bash
+RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
+    --config "$SCRIPT_DIR/e2etf-config.json" \
+    --data "/path/to/custom/data/dir" > "$TEST_SERVICE_LOG" 2>&1
 ```
 
-Metrics include:
-- Record processing latency
-- Throughput (records/second)
-- End-to-end latency distribution
-- Batch processing times
+### Integration with CI/CD
+
+The test returns exit code 0 on success, non-zero on failure:
+
+```bash
+#!/bin/bash
+cd scripts/drasi_server/integration/grpc_source_and_reaction
+./start.sh
+if [ $? -eq 0 ]; then
+    echo "Integration test passed"
+    exit 0
+else
+    echo "Integration test failed"
+    exit 1
+fi
+```
+
+## Related Tests
+
+- `../grpc_adaptive_source_and_reaction/` - Tests adaptive batching with gRPC sources
 
 ## Related Documentation
 
+- [Drasi Server Web API Utilities](../../../utils/drasi_server_web_api/)
+- [E2E Test Framework Web API Utilities](../../../utils/e2etf_test_service_web_api/)
+- [E2E Test Framework Documentation](https://github.com/drasi-project/drasi-test-infra)
 - [Drasi Server Documentation](https://github.com/drasi-project/drasi-server)
-- [E2E Test Framework](https://github.com/drasi-project/drasi-test-infra)
-- [Building Comfort Model](../../dev_repo/building_comfort.test.json)
