@@ -44,7 +44,7 @@ kill_process() {
 kill_process "drasi-server.*server-config" "Drasi Server"
 
 # Kill E2E Test Service for this specific test
-kill_process "test-service.*building_comfort.*drasi_server_grpc" "E2E Test Service"
+kill_process "test-service.*grpc_source_and_reaction" "E2E Test Service"
 
 # Clean up any orphaned processes on specific ports
 echo -e "${YELLOW}Checking for processes on test ports...${NC}"
@@ -65,6 +65,12 @@ fi
 if lsof -i:50052 > /dev/null 2>&1; then
     echo -e "${YELLOW}Killing process on port 50052${NC}"
     lsof -ti:50052 | xargs kill -9 2>/dev/null || true
+fi
+
+# Check port 63123 (test-service API)
+if lsof -i:63123 > /dev/null 2>&1; then
+    echo -e "${YELLOW}Killing process on port 63123${NC}"
+    lsof -ti:63123 | xargs kill -9 2>/dev/null || true
 fi
 
 echo -e "${GREEN}All processes stopped${NC}"
