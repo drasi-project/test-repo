@@ -84,11 +84,17 @@ cargo build
 # Use the permanent server config file
 CONFIG_FILE="$SCRIPT_DIR/server-config.yaml"
 
-# Remove old log file if it exists
+# Remove old log files if they exist
 LOG_FILE="$SCRIPT_DIR/drasi-server-debug.log"
 if [ -f "$LOG_FILE" ]; then
-    echo -e "${YELLOW}Removing old log file...${NC}"
+    echo -e "${YELLOW}Removing old drasi-server log file...${NC}"
     rm "$LOG_FILE"
+fi
+
+TEST_SERVICE_LOG="$SCRIPT_DIR/test-service-debug.log"
+if [ -f "$TEST_SERVICE_LOG" ]; then
+    echo -e "${YELLOW}Removing old test-service log file...${NC}"
+    rm "$TEST_SERVICE_LOG"
 fi
 
 # Start Drasi Server in background with debug logging
@@ -123,12 +129,13 @@ fi
 # Wait a bit more for gRPC source to be fully ready
 sleep 2
 
-# Run the E2E test with debug logging
+# Run the E2E test with debug logging and capture output
 echo -e "${YELLOW}Starting E2E Test Framework (Debug)...${NC}"
+echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
 RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
     --config "$SCRIPT_DIR/e2etf-config.json" \
-    --data "$SCRIPT_DIR/test_data_store"
+    --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 
 TEST_EXIT_CODE=$?
 
@@ -141,7 +148,9 @@ if [ $TEST_EXIT_CODE -eq 0 ]; then
     echo -e "${GREEN}Test completed successfully!${NC}"
 else
     echo -e "${RED}Test failed with exit code: $TEST_EXIT_CODE${NC}"
-    echo "Check the server log at: $LOG_FILE"
+    echo "Check the logs at:"
+    echo "  - Drasi Server: $LOG_FILE"
+    echo "  - Test Service: $TEST_SERVICE_LOG"
 fi
 
 exit $TEST_EXIT_CODE
