@@ -51,3 +51,5 @@ test_run_host:
           # Output Loggers
           output_loggers:                         # What to log from this reaction
             - kind: PerformanceMetrics            # Log performance metrics (throughput, latency)
+            - kind: JsonlFile                     # Log results to JSONL file
+              max_lines_per_file: 5000
