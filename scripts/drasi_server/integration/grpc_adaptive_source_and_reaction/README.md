@@ -1,85 +1,82 @@
-# Drasi Server gRPC Adaptive Batching Integration Test
+# Drasi Server Adaptive gRPC Integration Test
 
-This is a self-contained integration test for Drasi Server that validates adaptive batching functionality for both gRPC sources and reactions. It extends the basic gRPC integration test to specifically test dynamic batch size adjustment based on load.
+This is a self-contained integration test for Drasi Server that validates the complete end-to-end data flow using gRPC source and reaction endpoints with **adaptive batch sizing** for improved efficiency.
 
 ## Purpose
 
 This test validates:
-- **Adaptive gRPC Source Batching**: Dynamic batch size adjustment for incoming data
-- **Adaptive gRPC Reaction Batching**: Dynamic batch size adjustment for outgoing results
-- **High-Throughput Processing**: Server performance under adaptive batching
+- **Adaptive gRPC Source Integration**: Data ingestion via gRPC on port 50051 with dynamic batch sizing
+- **Continuous Query Processing**: Cypher query execution with real-time updates
+- **gRPC Reaction Delivery**: Query results pushed via gRPC on port 50052
 - **Building Comfort Model**: Synthetic sensor data generation (temperature, CO2, humidity)
-- **Performance**: Batch size optimization and latency characteristics
+- **Adaptive Batching**: Dynamic adjustment of batch sizes based on throughput and latency
+- **Performance**: End-to-end throughput and latency measurement with adaptive optimization
 
-Use this test to verify that:
-- Adaptive batching correctly adjusts batch sizes based on throughput
-- Changes to Drasi Server haven't broken adaptive batching logic
-- Performance improvements from adaptive batching are maintained
+Use this test to verify that adaptive batching in the gRPC source improves throughput and reduces latency compared to fixed batching.
 
 ## What is Adaptive Batching?
 
-Adaptive batching dynamically adjusts batch sizes and wait times based on current throughput:
+Adaptive batching is a dynamic optimization technique that automatically adjusts batch sizes and flush timeouts based on real-time system performance. Unlike fixed batching which uses static parameters, adaptive batching:
 
-**Low Load** → Small batches, short wait times → Low latency
-**High Load** → Large batches, longer wait times → High throughput
+- **Monitors throughput and latency**: Tracks how quickly events are being processed
+- **Adjusts batch size dynamically**: Increases batch size when throughput is high, decreases when latency increases
+- **Optimizes for efficiency**: Balances between high throughput (large batches) and low latency (quick flushes)
+- **Responds to load changes**: Automatically adapts to varying data generation rates
 
-This provides optimal latency during quiet periods and optimal throughput during bursts.
+This test compares adaptive batching performance against the baseline fixed-batch test to demonstrate improved efficiency under real-world conditions.
 
 ## Architecture
 
 ```
-┌─────────────────────┐
-│  E2E Test Framework │
-│  (test-service)     │
-│  Port: 63123        │
-│                     │
-│  ┌───────────────┐  │
-│  │ Data Generator│  │
-│  │  (Building    │  │
-│  │   Hierarchy)  │  │
-│  └───────┬───────┘  │
-│          │ gRPC     │
-│          │ :50051   │
-│          │ ADAPTIVE │
-│          │ BATCHING │
-└──────────┼──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Drasi Server      │
-│   Port: 8080 (API)  │
-│                     │
-│  ┌───────────────┐  │
-│  │ gRPC Source   │  │
-│  │   :50051      │  │
-│  │ (Adaptive)    │  │
-│  └───────┬───────┘  │
-│          │          │
-│  ┌───────▼───────┐  │
-│  │ Query Engine  │  │
-│  │  (Cypher)     │  │
-│  └───────┬───────┘  │
-│          │          │
-│  ┌───────▼───────┐  │
-│  │ gRPC Reaction │  │
-│  │   :50052      │  │
-│  │ (Adaptive)    │  │
-│  └───────┬───────┘  │
-└──────────┼──────────┘
-           │ gRPC
-           │ :50052
-           │ ADAPTIVE
-           │ BATCHING
-           ▼
-┌─────────────────────┐
-│  E2E Test Framework │
-│  (Reaction Handler) │
-│                     │
-│  ┌───────────────┐  │
-│  │  Performance  │  │
-│  │   Metrics     │  │
-│  └───────────────┘  │
-└─────────────────────┘
+┌─────────────────────────────┐
+│  E2E Test Framework         │
+│  (test-service)             │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ Data Generator        │  │
+│  │  (Building Hierarchy) │  │
+│  │  - 1,000 events       │  │
+│  │  - Adaptive batching  │  │
+│  └───────────┬───────────┘  │
+│              │ gRPC         │
+│              │ :50051       │
+│              │ (adaptive)   │
+└──────────────┼──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│   Drasi Server              │
+│   Port: 8080 (API)          │
+│                             │
+│  ┌───────────────────────┐  │
+│  │ Adaptive gRPC Source  │  │
+│  │   :50051              │  │
+│  │ - Dynamic batch size  │  │
+│  └───────────┬───────────┘  │
+│              │              │
+│  ┌───────────▼───────────┐  │
+│  │ Query Engine          │  │
+│  │  (Cypher)             │  │
+│  └───────────┬───────────┘  │
+│              │              │
+│  ┌───────────▼───────────┐  │
+│  │ gRPC Reaction         │  │
+│  │   :50052              │  │
+│  └───────────┬───────────┘  │
+└──────────────┼──────────────┘
+               │ gRPC
+               │ :50052
+               ▼
+┌─────────────────────────────┐
+│  E2E Test Framework         │
+│  (Reaction Handler)         │
+│                             │
+│  ┌───────────────────────┐  │
+│  │  Performance Metrics  │  │
+│  │  - Throughput         │  │
+│  │  - Latency            │  │
+│  └───────────────────────┘  │
+└─────────────────────────────┘
 ```
 
 ## Prerequisites
@@ -107,7 +104,7 @@ The test scripts automatically navigate to these directories using relative path
 
 Expected output:
 ```
-Starting Drasi Server Test - gRPC Adaptive (Debug Mode)
+Starting Drasi Server Test - gRPC (Debug Mode)
 ================================================
 Checking port availability...
 All required ports are available
@@ -118,12 +115,12 @@ Test completed successfully!
 ```
 
 The test will automatically:
-1. Check port availability (8080, 50051, 50052, 63123)
-2. Build and start Drasi Server with adaptive batching enabled
-3. Build and run E2E Test Framework with adaptive source batching
-4. Generate 1,000 sensor change events (batched adaptively)
-5. Verify 1,000 query results are delivered (batched adaptively)
-6. Report performance metrics including batch size statistics
+1. Check port availability (8080, 50051, 50052)
+2. Build and start Drasi Server
+3. Build and run E2E Test Framework
+4. Generate 1,000 sensor change events with adaptive batch sizing
+5. Verify 1,000 query results are delivered
+6. Report performance metrics
 7. Clean up processes
 
 ### Stop the Test
@@ -143,8 +140,8 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 | File | Purpose |
 |------|---------|
-| `server-config.yaml` | Drasi Server configuration with adaptive batching settings |
-| `e2etf-config.json` | E2E Test Framework configuration with adaptive source batching |
+| `drasi-server-config.yaml` | Drasi Server configuration (sources, queries, reactions) |
+| `test-service-config.yaml` | E2E Test Framework configuration (test repos, test runs) |
 
 ### Scripts
 
@@ -157,8 +154,8 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 | File | Content |
 |------|---------|
-| `drasi-server-debug.log` | Drasi Server debug logs including batch size adjustments |
-| `test-service-debug.log` | E2E Test Framework debug logs including batching behavior |
+| `drasi-server-debug.log` | Drasi Server debug logs (RUST_LOG=debug) |
+| `test-service-debug.log` | E2E Test Framework debug logs (RUST_LOG=debug) |
 
 ### Data Directory (Generated)
 
@@ -168,11 +165,46 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 ## Configuration Details
 
-### server-config.yaml
+### drasi-server-config.yaml
 
-The key difference from the standard gRPC test is the `adaptive_batching` configuration in the reaction:
+Configures Drasi Server with three main sections:
 
-**Adaptive Reaction Configuration:**
+**Server Configuration:**
+```yaml
+server:
+  host: 0.0.0.0
+  port: 8080                    # Health check and Web API
+  log_level: drasi_server=info,drasi_core=warn
+  disable_persistence: true     # No disk persistence needed for tests
+```
+
+**Source Configuration:**
+```yaml
+sources:
+- id: facilities-db
+  source_type: grpc
+  auto_start: true              # Start when server starts
+  port: 50051                   # gRPC source endpoint
+  max_message_size: 8388608     # 8MB max message
+  max_connections: 100
+  keepalive_interval_seconds: 10
+  keepalive_timeout_seconds: 10
+```
+
+**Query Configuration:**
+```yaml
+queries:
+- id: building-comfort
+  query: |
+    MATCH (r:Room)
+    RETURN elementId(r) AS RoomId,
+           r.temperature, r.humidity, r.co2
+  sources:
+  - facilities-db
+  auto_start: true
+```
+
+**Reaction Configuration:**
 ```yaml
 reactions:
 - id: rooms-grpc
@@ -181,67 +213,74 @@ reactions:
   - building-comfort
   auto_start: true
   endpoint: http://127.0.0.1:50052
-  batch_size: 1000                    # Initial/default batch size
-  batch_flush_timeout_ms: 100         # Initial/default timeout
-  adaptive_batching:
-    enabled: true                     # Enable adaptive batching
-    min_batch_size: 1                 # Minimum batch size (low load)
-    max_batch_size: 2000              # Maximum batch size (high load)
-    min_wait_time_ms: 0.1             # Minimum wait time (low load)
-    max_wait_time_ms: 100             # Maximum wait time (high load)
+  batch_size: 1000
+  batch_flush_timeout_ms: 100
+  max_retries: 3
+  timeout_ms: 5000
+  metadata:
+    x-api-key: test-key-12345
+    x-client-id: drasi-test
 ```
 
-**How it works:**
-- **Low throughput**: Batches ~1 record, waits ~0.1ms → Low latency
-- **High throughput**: Batches up to 2000 records, waits up to 100ms → High throughput
-- **Medium throughput**: Batch size and wait time adjust dynamically
+### test-service-config.yaml
 
-**Increased Capacity Settings:**
+Configures the E2E Test Framework to use a test definition from GitHub:
+
+**Data Store and Test Repositories:**
 ```yaml
-server_core:
-  priority_queue_capacity: 500000      # Increased for adaptive batching
-  broadcast_channel_capacity: 500000   # Increased for adaptive batching
+data_store:
+  data_store_path: ./test_data_cache    # Overridden by --data flag
+  delete_on_start: true                 # Clean cache on start
+  delete_on_stop: true                  # Clean cache on stop
+
+  # Test Repository Configuration (nested under data_store)
+  test_repos:
+    - id: github_dev_repo
+      kind: GitHub                      # Fetch test from GitHub
+      owner: drasi-project
+      repo: test-repo
+      branch: query-host
+      force_cache_refresh: false        # Use cached test if available
+      root_path: dev_repo/drasi_server/integration
 ```
 
-These larger capacities allow the server to buffer more events during batch accumulation.
+The test definition is loaded from:
+`dev_repo/drasi_server/integration/building_comfort_grpc_adaptive.test`
 
-### e2etf-config.json
+This test file defines:
+- **Data Generator**: BuildingHierarchy model (1 building, 1 floor, 1 room)
+- **Change Events**: 1,000 sensor updates (temperature, CO2, humidity)
+- **Source Dispatcher**: gRPC to localhost:50051 with adaptive batching enabled
+  - `adaptive_enabled: true` - Enables dynamic batch size adjustment
+  - `batch_size: 1000` - Initial batch size
+  - `batch_timeout_ms: 50` - Initial batch flush timeout
+- **Reaction Handler**: gRPC on 0.0.0.0:50052
+- **Stop Trigger**: RecordCount of 1,000 results
 
-The key difference is the `adaptive_enabled` flag in the source dispatcher:
-
-**Adaptive Source Configuration:**
-```json
-{
-  "source_change_dispatchers": [{
-    "kind": "Grpc",
-    "host": "localhost",
-    "port": 50051,
-    "source_id": "facilities-db",
-    "batch_events": true,           // Enable batching
-    "adaptive_enabled": true,       // Enable adaptive behavior
-    "batch_size": 1000,             // Target batch size
-    "batch_timeout_ms": 50          // Batch timeout
-  }]
-}
+**Test Run Configuration:**
+```yaml
+test_run_host:
+  test_runs:
+    - test_id: building_comfort_grpc_adaptive  # References the test file
+      test_repo_id: github_dev_repo
+      test_run_id: test_run_001
+      sources:
+        - test_source_id: facilities-db
+          start_mode: auto              # Start immediately
+      reactions:
+        - test_reaction_id: building-comfort
+          start_immediately: true
+          output_loggers:
+            - kind: PerformanceMetrics  # Log performance data
 ```
-
-**Test Run Identifier:**
-```json
-{
-  "test_run_id": "test_run_adaptive_001"  // Different from standard test
-}
-```
-
-This allows running both tests simultaneously for comparison.
 
 ## Ports Used
 
 | Port | Service | Direction | Description |
 |------|---------|-----------|-------------|
 | 8080 | Drasi Server API | Incoming | Health checks, Web API for inspection |
-| 50051 | gRPC Source (Adaptive) | Incoming | E2ETF → Drasi (batched data changes) |
-| 50052 | gRPC Reaction (Adaptive) | Outgoing | Drasi → E2ETF (batched query results) |
-| 63123 | Test Service API | Incoming | Web API for test control/inspection |
+| 50051 | gRPC Source | Incoming | E2ETF → Drasi (data changes) |
+| 50052 | gRPC Reaction | Outgoing | Drasi → E2ETF (query results) |
 
 ## Inspecting Running Tests
 
@@ -261,48 +300,25 @@ code ../../../utils/drasi_server_web_api/web_api.http
 - **List Sources**: `GET http://localhost:8080/sources`
 - **List Queries**: `GET http://localhost:8080/queries`
 - **List Reactions**: `GET http://localhost:8080/reactions`
-- **Reaction Details**: `GET http://localhost:8080/reactions/rooms-grpc`
-  - Check adaptive batching status and current batch size
+- **Query Details**: `GET http://localhost:8080/queries/{query_id}`
+- **Reaction Details**: `GET http://localhost:8080/reactions/{reaction_id}`
 
 See `../../../utils/drasi_server_web_api/` for more operations (start/stop/pause sources, queries, and reactions).
 
-### E2E Test Service Web API (Port 63123)
+### E2E Test Service Web API (Not Enabled)
 
-Use the HTTP files in `../../../utils/e2etf_test_service_web_api/` to interact with the Test Framework:
+**Note:** This test configuration does not enable the test service Web API. The test runs in automated mode without interactive control.
+
+To enable the Web API for interactive debugging, you would need to add the `--port` flag to the test-service command in `start.sh` (line 136):
 
 ```bash
-# Open in VS Code with REST Client extension
-code ../../../utils/e2etf_test_service_web_api/web_api.http
+RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
+    --config "$SCRIPT_DIR/test-service-config.yaml" \
+    --data "$SCRIPT_DIR/test_data_store" \
+    --port 63123 > "$TEST_SERVICE_LOG" 2>&1  # Add --port flag
 ```
 
-**Available Operations:**
-- **Test Runs**: List/view test runs and their status
-- **Sources**: Control data generation (start/pause/stop/step/skip)
-- **Queries**: Monitor query execution and results
-- **Reactions**: Monitor reaction delivery and performance
-- **Test Repos**: Inspect test definitions and configurations
-
-**Example Use Cases:**
-
-1. **Pause data generation to observe batch size adjustment:**
-   ```http
-   POST http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_adaptive_001/sources/facilities-db/pause
-   ```
-
-2. **Step through data to test low-load batching:**
-   ```http
-   POST http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_adaptive_001/sources/facilities-db/step
-   Content-Type: application/json
-
-   {"num_steps": 1, "spacing_mode": "None"}
-   ```
-
-3. **Check reaction statistics including batch sizes:**
-   ```http
-   GET http://localhost:63123/api/test_runs/local_dev_repo.building_comfort.test_run_adaptive_001/reactions/building-comfort/profile
-   ```
-
-See `../../../utils/e2etf_test_service_web_api/README.md` for detailed API documentation.
+Once enabled, you can use the HTTP files in `../../../utils/test_service_web_api/` to interact with the Test Framework for operations like pausing/stepping through data generation, monitoring reactions, and inspecting test state.
 
 ### Using the HTTP Files
 
@@ -323,7 +339,7 @@ See `../../../utils/e2etf_test_service_web_api/README.md` for detailed API docum
 
 After a successful test run, performance metrics are saved to:
 ```
-test_data_store/test_runs/local_dev_repo.building_comfort.test_run_adaptive_001/reactions/building-comfort/output_log/performance_metrics/performance_metrics_*.json
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc_adaptive.test_run_001/reactions/building-comfort/output_log/performance_metrics/performance_metrics_*.json
 ```
 
 Example metrics:
@@ -334,30 +350,12 @@ Example metrics:
   "duration_ns": 28833000,
   "record_count": 1000,
   "records_per_second": 34682.48,
-  "test_run_reaction_id": "local_dev_repo.building_comfort.test_run_adaptive_001.building-comfort",
+  "test_run_reaction_id": "github_dev_repo.building_comfort_grpc_adaptive.test_run_001.building-comfort",
   "timestamp": "2025-11-09T04:25:58.641111Z"
 }
 ```
 
-### Analyzing Adaptive Batching Behavior
-
-**Check batch size adjustments in Drasi Server logs:**
-```bash
-grep -i "batch" drasi-server-debug.log | grep -i "adaptive"
-```
-
-**Check source batching in Test Service logs:**
-```bash
-grep -i "batch" test-service-debug.log | head -20
-```
-
-**View batch processing times:**
-```bash
-grep "Dequeued query result" drasi-server-debug.log | head -20
-```
-
-**Compare with standard gRPC test:**
-Run both tests and compare performance metrics to see the impact of adaptive batching.
+These metrics can be compared with the non-adaptive gRPC test to measure the performance improvement from adaptive batching.
 
 ### Log Analysis
 
@@ -371,78 +369,56 @@ grep -i error drasi-server-debug.log
 grep -i error test-service-debug.log
 ```
 
-**View batched events sent to Drasi:**
+**View source events sent to Drasi:**
 ```bash
-grep "Processing.*batch" drasi-server-debug.log | head -10
+grep "Processing gRPC event" drasi-server-debug.log | head -10
 ```
 
-**View batched results sent to reactions:**
+**View query results sent to reactions:**
 ```bash
 grep "sending.*results to reactions" drasi-server-debug.log | head -10
 ```
 
 ## Modifying the Test
 
-### Adjust Adaptive Batching Parameters
+### Change Test Size
 
-Edit `server-config.yaml` to tune adaptive batching behavior:
+To test with more data, edit the test definition file in the GitHub repository:
+`dev_repo/drasi_server/integration/building_comfort_grpc_adaptive.test`
 
 ```yaml
-reactions:
-- id: rooms-grpc
-  adaptive_batching:
-    enabled: true
-    min_batch_size: 10              # Increase minimum for testing
-    max_batch_size: 5000            # Increase maximum for high throughput
-    min_wait_time_ms: 1.0           # Increase for more batching at low load
-    max_wait_time_ms: 500           # Increase for larger batches at high load
-```
-
-### Test with More Data
-
-To stress-test adaptive batching with higher load, edit `e2etf-config.json`:
-
-```json
-{
-  "room_count": [10, 0],         // 10 rooms instead of 1
-  "change_count": 100000         // 100,000 changes instead of 1,000
-}
+# In the sources section, under model_data_generator:
+room_count: [10, 0]              # 10 rooms instead of 1
+change_count: 10000              # 10,000 changes instead of 1,000
 ```
 
 **Important:** Also update the stop trigger to match:
-```json
-{
-  "stop_triggers": [{
-    "kind": "RecordCount",
-    "record_count": 100000       // Must match change_count
-  }]
-}
-```
-
-### Disable Adaptive Batching for Comparison
-
-To compare performance with/without adaptive batching:
-
-**In `server-config.yaml`:**
 ```yaml
-reactions:
-- id: rooms-grpc
-  adaptive_batching:
-    enabled: false              # Disable adaptive batching
+# In the reactions section:
+stop_triggers:
+  - kind: RecordCount
+    record_count: 10000          # Must match change_count
 ```
 
-**In `e2etf-config.json`:**
-```json
-{
-  "source_change_dispatchers": [{
-    "adaptive_enabled": false   // Disable adaptive source batching
-  }]
-}
+After modifying the test file, set `force_cache_refresh: true` in `test-service-config.yaml` to fetch the latest version from GitHub.
+
+### Tune Adaptive Batching Parameters
+
+To adjust the adaptive batching behavior, edit the test definition file:
+`dev_repo/drasi_server/integration/building_comfort_grpc_adaptive.test`
+
+```yaml
+# In the sources section, under source_change_dispatchers:
+adaptive_enabled: true           # Enable/disable adaptive batching
+batch_size: 1000                 # Initial batch size
+batch_timeout_ms: 50             # Initial batch flush timeout
 ```
+
+The adaptive batching algorithm will automatically adjust these values based on throughput and latency characteristics.
 
 ### Change Query
 
-Edit `server-config.yaml` to modify the Cypher query:
+Edit `drasi-server-config.yaml` to modify the Cypher query:
 
 ```yaml
 queries:
@@ -456,7 +432,7 @@ queries:
 
 ### Use Release Build
 
-For performance benchmarking, edit `start.sh` line 82:
+For performance testing, edit `start.sh` line 82:
 
 ```bash
 # Change from:
@@ -485,7 +461,6 @@ Error: The following required ports are already in use:
   - Port 8080 (Drasi Server API)
   - Port 50051 (gRPC Source)
   - Port 50052 (gRPC Reaction)
-  - Port 63123 (Test Service API)
 ```
 
 **Solution:**
@@ -499,27 +474,7 @@ If `stop.sh` doesn't resolve it:
 lsof -ti:8080 | xargs kill -9
 lsof -ti:50051 | xargs kill -9
 lsof -ti:50052 | xargs kill -9
-lsof -ti:63123 | xargs kill -9
 ```
-
-### Adaptive Batching Not Working
-
-**Check if adaptive batching is enabled:**
-```bash
-# In server-config.yaml
-grep -A5 "adaptive_batching" server-config.yaml
-
-# In e2etf-config.json
-grep "adaptive_enabled" e2etf-config.json
-```
-
-**Check for adaptive batching logs:**
-```bash
-grep -i "adaptive" drasi-server-debug.log
-```
-
-**Verify batch sizes are changing:**
-Look for varying batch sizes in the logs rather than constant sizes.
 
 ### Test Hangs or Fails
 
@@ -542,9 +497,9 @@ tail -50 test-service-debug.log
 
 **Common issues:**
 - **gRPC connection failed**: Check if ports 50051/50052 are actually listening
-- **Query not processing**: Check query syntax in `server-config.yaml`
+- **Query not processing**: Check query syntax in `drasi-server-config.yaml`
 - **Test hangs at completion**: Check stop trigger `record_count` matches `change_count`
-- **Batch sizes not adapting**: Check `adaptive_batching.enabled` is `true`
+- **Adaptive batching not working**: Check `adaptive_enabled: true` in test definition and verify debug logs show batch size adjustments
 
 ### Build Failures
 
@@ -572,33 +527,7 @@ rm -rf test_data_store/
 ./start.sh
 ```
 
-The test automatically cleans `test_data_store/` on start and stop (configured via `delete_on_start` and `delete_on_stop` in `e2etf-config.json`).
-
-## Performance Comparison
-
-### Comparing with Standard gRPC Test
-
-To understand the impact of adaptive batching, run both tests and compare:
-
-**Standard gRPC test:**
-```bash
-cd ../grpc_source_and_reaction
-./start.sh
-# Note the throughput from performance metrics
-```
-
-**Adaptive gRPC test:**
-```bash
-cd ../grpc_adaptive_source_and_reaction
-./start.sh
-# Compare throughput and latency
-```
-
-**Expected differences:**
-- **Adaptive batching** may show higher peak throughput during bursts
-- **Adaptive batching** may show lower latency during quiet periods
-- **Adaptive batching** should show varying batch sizes in logs
-- **Standard batching** should show consistent batch sizes
+The test automatically cleans `test_data_store/` on start and stop (configured via `delete_on_start` and `delete_on_stop` in `test-service-config.yaml`).
 
 ## Advanced Usage
 
@@ -616,7 +545,7 @@ The `start.sh` script passes `--data ./test_data_store` to the test-service. To 
 
 ```bash
 RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
-    --config "$SCRIPT_DIR/e2etf-config.json" \
+    --config "$SCRIPT_DIR/test-service-config.yaml" \
     --data "/path/to/custom/data/dir" > "$TEST_SERVICE_LOG" 2>&1
 ```
 
@@ -629,69 +558,44 @@ The test returns exit code 0 on success, non-zero on failure:
 cd scripts/drasi_server/integration/grpc_adaptive_source_and_reaction
 ./start.sh
 if [ $? -eq 0 ]; then
-    echo "Adaptive batching integration test passed"
+    echo "Integration test passed"
     exit 0
 else
-    echo "Adaptive batching integration test failed"
+    echo "Integration test failed"
     exit 1
 fi
 ```
-
-### Benchmark Suite
-
-Create a script to run both tests and compare results:
-
-```bash
-#!/bin/bash
-
-echo "Running standard gRPC test..."
-cd ../grpc_source_and_reaction
-./start.sh
-STANDARD_RESULT=$?
-
-echo "Running adaptive gRPC test..."
-cd ../grpc_adaptive_source_and_reaction
-./start.sh
-ADAPTIVE_RESULT=$?
-
-if [ $STANDARD_RESULT -eq 0 ] && [ $ADAPTIVE_RESULT -eq 0 ]; then
-    echo "Both tests passed - comparing metrics..."
-    # Compare performance metrics from both tests
-    exit 0
-else
-    echo "One or more tests failed"
-    exit 1
-fi
-```
-
-## Adaptive Batching Algorithm
-
-The adaptive batching algorithm works as follows:
-
-1. **Monitor throughput**: Track the rate of incoming events or outgoing results
-2. **Adjust batch size**:
-   - High throughput → Increase batch size (up to `max_batch_size`)
-   - Low throughput → Decrease batch size (down to `min_batch_size`)
-3. **Adjust wait time**:
-   - High throughput → Increase wait time (up to `max_wait_time_ms`)
-   - Low throughput → Decrease wait time (down to `min_wait_time_ms`)
-4. **Send batch** when either:
-   - Batch size reaches current target, OR
-   - Wait time expires
-
-This provides:
-- **Low latency** during quiet periods (small batches, short waits)
-- **High throughput** during bursts (large batches, longer waits)
-- **Smooth transitions** between load levels
 
 ## Related Tests
 
-- `../grpc_source_and_reaction/` - Standard gRPC test without adaptive batching
+- `../grpc_source_and_reaction/` - Baseline gRPC test without adaptive batching (for performance comparison)
+
+## Performance Comparison
+
+To measure the benefits of adaptive batching, compare this test's performance metrics with the non-adaptive version:
+
+1. **Run non-adaptive test:**
+   ```bash
+   cd ../grpc_source_and_reaction
+   ./start.sh
+   ```
+
+2. **Run adaptive test:**
+   ```bash
+   cd ../grpc_adaptive_source_and_reaction
+   ./start.sh
+   ```
+
+3. **Compare metrics:**
+   - Check `records_per_second` in both performance metrics files
+   - Compare `duration_ns` for the same `record_count`
+   - Review debug logs to see batch size adjustments in adaptive mode
+
+Expected results: Adaptive batching should show improved throughput and lower latency under varying load conditions.
 
 ## Related Documentation
 
 - [Drasi Server Web API Utilities](../../../utils/drasi_server_web_api/)
-- [E2E Test Framework Web API Utilities](../../../utils/e2etf_test_service_web_api/)
+- [E2E Test Framework Web API Utilities](../../../utils/test_service_web_api/)
 - [E2E Test Framework Documentation](https://github.com/drasi-project/drasi-test-infra)
 - [Drasi Server Documentation](https://github.com/drasi-project/drasi-server)
-- [Standard gRPC Integration Test](../grpc_source_and_reaction/README.md)
