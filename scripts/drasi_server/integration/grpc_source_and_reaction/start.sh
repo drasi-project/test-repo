@@ -82,7 +82,7 @@ cd "$DRASI_SERVER_DIR"
 cargo build
 
 # Use the permanent server config file
-CONFIG_FILE="$SCRIPT_DIR/server-config.yaml"
+CONFIG_FILE="$SCRIPT_DIR/drasi-server-config.yaml"
 
 # Remove old log files if they exist
 LOG_FILE="$SCRIPT_DIR/drasi-server-debug.log"
@@ -134,7 +134,7 @@ echo -e "${YELLOW}Starting E2E Test Framework (Debug)...${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
 RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
-    --config "$SCRIPT_DIR/e2etf-config.json" \
+    --config "$SCRIPT_DIR/test-service-config.yaml" \
     --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 
 TEST_EXIT_CODE=$?
