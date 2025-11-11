@@ -22,6 +22,8 @@ sources:
         adaptive_enabled: true                    # Enable adaptive batch sizing
         batch_size: 1000                          # Initial batch size
         batch_timeout_ms: 50                      # Initial batch flush timeout
+      - kind: JsonlFile                           # Log events to JSONL files for debugging
+        max_events_per_file: 5000
 
     # Synthetic Data Generator Configuration
     model_data_generator:

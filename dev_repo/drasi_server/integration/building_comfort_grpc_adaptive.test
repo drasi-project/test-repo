@@ -23,6 +23,8 @@ sources:
         batch_size: 1000                          # Initial batch size
         batch_timeout_ms: 50                      # Initial batch flush timeout
         tls: false                                # No TLS for local testing
+      - kind: JsonlFile                           # Log events to JSONL files for debugging
+        max_events_per_file: 5000
 
     # Synthetic Data Generator Configuration
     model_data_generator:

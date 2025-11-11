@@ -19,6 +19,8 @@ sources:
         port: 9000                                # Http source port
         timeout_seconds: 60                       # Request timeout
         batch_events: false                       # Send events individually (not batched)
+      - kind: JsonlFile                           # Log events to JSONL files for debugging
+        max_events_per_file: 5000
 
     # Synthetic Data Generator Configuration
     model_data_generator:

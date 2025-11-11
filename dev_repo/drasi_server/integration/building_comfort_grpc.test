@@ -20,6 +20,8 @@ sources:
         timeout_seconds: 60                       # Request timeout
         batch_events: false                       # Send events individually (not batched)
         tls: false                                # No TLS for local testing
+      - kind: JsonlFile                           # Log events to JSONL files for debugging
+        max_events_per_file: 5000
 
     # Synthetic Data Generator Configuration
     model_data_generator:
