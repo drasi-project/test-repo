@@ -1,0 +1,96 @@
+# Building Comfort Http Integration Test
+# Tests Drasi Server with synthetic building sensor data via Http Source and Reaction
+test_id: building_comfort_http_adaptive           # Unique test identifier
+version: 1                                        # Test definition version
+description: ""                                   # Test description (optional)
+test_folder: building_comfort                     # Folder for resources used by the test
+
+# Data Sources
+# Defines how test data is generated and delivered to Drasi Server during the test
+sources:
+  - test_source_id: facilities-db                 # Unique ID for the Source
+    kind: Model                                   # Use synthetic data generator
+
+    # How to send data to Drasi Server
+    source_change_dispatchers:
+      - source_id: facilities-db                  # Target source ID in Drasi Server
+        kind: Http                                # Send via Http
+        url: localhost                            # Drasi Server URL
+        port: 9000                                # Http source port
+        timeout_seconds: 60                       # Request timeout
+        batch_events: true                        # Send events in batches
+        adaptive_enabled: true                    # Enable adaptive batch sizing
+        batch_size: 1000                          # Initial batch size
+        batch_timeout_ms: 50                      # Initial batch flush timeout
+
+    # Synthetic Data Generator Configuration
+    model_data_generator:
+      kind: BuildingHierarchy                     # Generate building/floor/room hierarchy test data
+
+      # Change Event Timing (in nanoseconds)
+      change_interval:                            # Intervals between sensor updates
+        - 2000000000                              # 
+        - 500000000                               # 
+        - 500000000                               # 
+        - 4000000000                              # 
+
+      change_count: 1000                          # Total number of change events to generate
+      seed: 123456789                             # RNG seed for reproducibility of test data
+      spacing_mode: none                          # No spacing between events (as fast as possible)
+      time_mode: "2025-01-03T10:03:15.4Z"         # Starting timestamp for events
+
+      # Building Hierarchy Configuration
+      # Format: [count, variance]
+      building_count: [1, 0]                      # 1 building, no variance
+      floor_count: [1, 0]                         # 1 floor per building, no variance
+      room_count: [1, 0]                          # 1 room per floor, no variance
+      # For larger tests, use: [10, 2] = 10 ± 2 (8-12 items)
+      # Room Sensor Definitions
+      room_sensors:
+        # Temperature Sensor
+        - id: temperature                         # Sensor property name
+          kind: NormalFloat                       # Normal distribution float values
+          momentum_init: [5, 1, 0.5]              # initial momentum - [mean, std_dev, decay] 
+          value_change: [1, 0]                    # per-change delta - [mean, std_dev]
+          value_init: [5000, 0]                   # initial value - [mean, std_dev]
+          value_range: [0, 10000]                 # valid range[min, max]
+        # CO2 Sensor
+        - id: co2
+          kind: NormalFloat
+          momentum_init: [10, 1, 0.5]             # Higher momentum for CO2 fluctuation
+          value_change: [1, 0]
+          value_init: [5000, 0]
+          value_range: [0, 10000]
+        # Humidity Sensor
+        - id: humidity
+          kind: NormalFloat
+          momentum_init: [5, 1, 0.5]
+          value_change: [1, 0]
+          value_init: [5000, 0]
+          value_range: [0, 10000]
+
+    # Query Subscriptions
+    subscribers:                                  # Which queries consume this source data
+      - node_id: default                          # Default node (single-node deployment)
+        query_id: building-comfort                # Query ID in Drasi Server
+
+# Queries 
+# Defines the Queries the Test Service will monitor for output during the test
+queries: [] # This test monitors Reaction output only
+
+# Reactions
+# Defines the Reactions the Test Service will monitor for output during the test
+reactions:
+  - test_reaction_id: building-comfort            # Matches reaction ID in server-config.yaml
+
+    # Http Result Handler
+    output_handler:
+      kind: Http                                  # Receive results via Http
+      port: 9001                                  # Http reaction port
+      path: /reaction                             # Http reaction path
+      correlation_metadata_key: x-query-sequence  # Metadata key for query correlation
+
+    # Test Completion Triggers
+    stop_triggers:
+      - kind: RecordCount                         # Stop after receiving N results
+        record_count: 1000                        # Must match change_count above
