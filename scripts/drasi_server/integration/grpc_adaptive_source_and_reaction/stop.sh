@@ -6,8 +6,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}Stopping Drasi Server Test - gRPC Adaptive${NC}"
-echo "=========================================="
+echo -e "${YELLOW}Stopping Drasi Server Test - gRPC${NC}"
+echo "================================="
 
 # Function to kill process by pattern
 kill_process() {
@@ -41,7 +41,7 @@ kill_process() {
 }
 
 # Kill Drasi Server
-kill_process "drasi-server.*server-config" "Drasi Server"
+kill_process "drasi-server.*drasi-server-config" "Drasi Server"
 
 # Kill E2E Test Service for this specific test
 kill_process "test-service.*grpc_adaptive_source_and_reaction" "E2E Test Service"

@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Drasi Server Test - gRPC Adaptive (Debug Mode)${NC}"
-echo "========================================================"
+echo -e "${GREEN}Starting Drasi Server Test - gRPC (Debug Mode)${NC}"
+echo "================================================"
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -73,7 +73,7 @@ echo -e "${GREEN}Found E2E Test Framework at: $E2E_ROOT${NC}"
 # Kill any existing processes
 echo -e "${YELLOW}Cleaning up any existing processes...${NC}"
 pkill -f "drasi-server" 2>/dev/null || true
-pkill -f "test-service.*building_comfort.*drasi_server_grpc_adaptive" 2>/dev/null || true
+pkill -f "test-service.*building_comfort.*drasi_server_grpc" 2>/dev/null || true
 sleep 2
 
 # Build Drasi Server in debug mode
@@ -82,7 +82,7 @@ cd "$DRASI_SERVER_DIR"
 cargo build
 
 # Use the permanent server config file
-CONFIG_FILE="$SCRIPT_DIR/server-config.yaml"
+CONFIG_FILE="$SCRIPT_DIR/drasi-server-config.yaml"
 
 # Remove old log files if they exist
 LOG_FILE="$SCRIPT_DIR/drasi-server-debug.log"
@@ -134,7 +134,7 @@ echo -e "${YELLOW}Starting E2E Test Framework (Debug)...${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
 RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
-    --config "$SCRIPT_DIR/e2etf-config.json" \
+    --config "$SCRIPT_DIR/test-service-config.yaml" \
     --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 
 TEST_EXIT_CODE=$?

@@ -1,0 +1,95 @@
+# Drasi Server Configuration for gRPC Integration Test
+# This configuration sets up a Drasi Server with gRPC source and reaction endpoints
+
+# Server Settings
+server:
+  host: 0.0.0.0                                    # Listen on all network interfaces
+  port: 8080                                       # Health check and Web API port
+  disable_persistence: true                        # Disables persistence of runtime changes to Drasi Server config
+  log_level: drasi_server=info,drasi_core=warn     # Logging verbosity
+  # Alternative log levels for debugging or production:
+  # log_level: drasi_server=debug,drasi_core=debug  # For detailed debugging
+  # log_level: drasi_server=warn,drasi_core=error   # For production (minimal logging)
+
+# Core Engine Settings
+server_core:
+  priority_queue_capacity: 10000                   # Default query processing queue capacity
+  broadcast_channel_capacity: 500000             # Result broadcast capacity
+
+# Data Sources
+# Define where Drasi Server receives data changes
+sources:
+- id: facilities-db                                # Unique source identifier
+  source_type: grpc                                # Source type: grpc, dapr, etc.
+  auto_start: true                                 # Start listening when server starts
+
+  # gRPC Source Settings
+  host: 0.0.0.0                                    # Listen address
+  port: 50051                                      # gRPC source endpoint port
+  max_message_size: 8388608                        # Max gRPC message size (8MB)
+  max_connections: 100                             # Max concurrent gRPC connections
+
+  # Connection Keep-Alive Settings
+  keepalive_interval_seconds: 10                   # Send keepalive ping interval
+  keepalive_timeout_seconds: 10                    # Keepalive timeout before disconnect
+
+# Continuous Queries
+# Define what data transformations to apply and track
+queries:
+- id: building-comfort                             # Unique query identifier
+  auto_start: true                                 # Start processing when server starts
+
+  # Cypher Query Definition
+  query: |
+    MATCH
+      (r:Room)                                     
+    RETURN
+      elementId(r) AS RoomId,                      
+      r.temperature, r.humidity, r.co2             
+
+  # Data Sources
+  sources:                                         # Which sources feed this query
+  - facilities-db
+
+# Reactions
+# Define how and where to send query results
+reactions:
+- id: rooms-grpc                                   # Unique reaction identifier
+  reaction_type: grpc                              # Reaction type: grpc, grpc_adaptive, etc.
+  auto_start: true                                 # Start sending results when server starts
+
+  # Query Subscriptions
+  queries:                                         # Which queries to subscribe to
+  - building-comfort
+
+  # gRPC Endpoint Configuration
+  endpoint: http://127.0.0.1:50052                 # Target gRPC server endpoint
+
+  # Batching Settings (Standard)
+  batch_size: 1000                                 # Max results per batch
+  batch_flush_timeout_ms: 100                      # Max wait time before flushing batch
+
+  # Connection Settings
+  compression: false                               # gRPC compression (set true to enable)
+  keepalive:
+    interval_seconds: 10                           # Keepalive ping interval
+    timeout_seconds: 10                            # Keepalive timeout
+
+  # Retry and Timeout Settings
+  max_retries: 3                                   # Max delivery retry attempts
+  timeout_ms: 5000                                 # Request timeout (5 seconds)
+  retry_delay_ms: 500                              # Delay between retries
+
+  # Custom Metadata Headers
+  metadata:                                        # Custom gRPC metadata headers
+    x-api-key: test-key-12345                      # Example: API key
+    x-client-id: drasi-test                        # Example: Client identifier
+
+  # TLS/SSL Configuration
+  tls:
+    enabled: false                                 # TLS disabled for local testing
+    # When enabling TLS:
+    # enabled: true
+    # ca_cert: /path/to/ca.pem                     # CA certificate
+    # client_cert: /path/to/client.pem             # Client certificate
+    # client_key: /path/to/client-key.pem          # Client key
