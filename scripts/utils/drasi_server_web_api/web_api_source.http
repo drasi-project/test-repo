@@ -18,7 +18,8 @@
 
 @hostname = localhost
 @port = 8080
-@source_id = price-feed
+@source_id = facilities-db
+@source_port = 9000
 
 ### GET LIST of all sources
 GET http://{{hostname}}:{{port}}/sources
@@ -33,3 +34,98 @@ Content-Type: application/json
 ### STOP a specific source
 GET http://{{hostname}}:{{port}}/sources/{{source_id}}/stop
 Content-Type: application/json
+
+###############################################################################
+# HTTP Source Data Submission
+# These requests submit data changes directly to the Drasi Server HTTP Source
+# The HTTP Source listens on a separate port (default 9000) from the management API
+###############################################################################
+
+### INSERT a node to the HTTP Source (single event)
+# Operation: insert
+# Creates a new Room node with temperature, humidity, and CO2 properties
+POST http://{{hostname}}:{{source_port}}/sources/{{source_id}}/events
+Content-Type: application/json
+
+{
+  "operation": "insert",
+  "element": {
+    "type": "node",
+    "id": "room-001",
+    "labels": ["Room"],
+    "properties": {
+      "temperature": 22.5,
+      "humidity": 45.0,
+      "co2": 400.0
+    }
+  },
+  "timestamp": 1699900000000
+}
+
+### UPDATE a node in the HTTP Source (single event)
+# Operation: update
+# Modifies properties of an existing Room node
+POST http://{{hostname}}:{{source_port}}/sources/{{source_id}}/events
+Content-Type: application/json
+
+{
+  "operation": "update",
+  "element": {
+    "type": "node",
+    "id": "room-001",
+    "labels": ["Room"],
+    "properties": {
+      "temperature": 23.0,
+      "humidity": 46.0,
+      "co2": 420.0
+    }
+  }
+}
+
+### DELETE a node from the HTTP Source (single event)
+# Operation: delete
+# Removes a Room node from the graph
+POST http://{{hostname}}:{{source_port}}/sources/{{source_id}}/events
+Content-Type: application/json
+
+{
+  "operation": "delete",
+  "id": "room-001",
+  "labels": ["Room"]
+}
+
+### BATCH INSERT multiple nodes to the HTTP Source
+# Submits multiple events in a single request for better performance
+POST http://{{hostname}}:{{source_port}}/sources/{{source_id}}/events/batch
+Content-Type: application/json
+
+{
+  "events": [
+    {
+      "operation": "insert",
+      "element": {
+        "type": "node",
+        "id": "room-002",
+        "labels": ["Room"],
+        "properties": {
+          "temperature": 21.0,
+          "humidity": 50.0,
+          "co2": 380.0
+        }
+      }
+    },
+    {
+      "operation": "insert",
+      "element": {
+        "type": "node",
+        "id": "room-003",
+        "labels": ["Room"],
+        "properties": {
+          "temperature": 24.0,
+          "humidity": 42.0,
+          "co2": 450.0
+        }
+      }
+    }
+  ]
+}
