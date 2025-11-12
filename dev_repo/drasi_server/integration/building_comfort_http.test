@@ -15,7 +15,7 @@ sources:
     source_change_dispatchers:
       - source_id: facilities-db                  # Target source ID in Drasi Server
         kind: Http                                # Send via Http
-        url: localhost                            # Drasi Server URL
+        url: http://localhost                     # Drasi Server URL
         port: 9000                                # Http source port
         timeout_seconds: 60                       # Request timeout
         batch_events: false                       # Send events individually (not batched)
