@@ -85,13 +85,13 @@ cargo build
 CONFIG_FILE="$SCRIPT_DIR/drasi-server-config.yaml"
 
 # Remove old log files if they exist
-LOG_FILE="$SCRIPT_DIR/drasi-server-debug.log"
+LOG_FILE="$SCRIPT_DIR/drasi-server.log"
 if [ -f "$LOG_FILE" ]; then
     echo -e "${YELLOW}Removing old drasi-server log file...${NC}"
     rm "$LOG_FILE"
 fi
 
-TEST_SERVICE_LOG="$SCRIPT_DIR/test-service-debug.log"
+TEST_SERVICE_LOG="$SCRIPT_DIR/test-service.log"
 if [ -f "$TEST_SERVICE_LOG" ]; then
     echo -e "${YELLOW}Removing old test-service log file...${NC}"
     rm "$TEST_SERVICE_LOG"

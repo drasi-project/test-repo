@@ -139,8 +139,8 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 | File | Content |
 |------|---------|
-| `drasi-server-debug.log` | Drasi Server debug logs (RUST_LOG=debug) |
-| `test-service-debug.log` | E2E Test Framework debug logs (RUST_LOG=debug) |
+| `drasi-server.log` | Drasi Server logs (RUST_LOG=debug) |
+| `test-service.log` | E2E Test Framework logs (RUST_LOG=debug) |
 
 ### Data Directory (Generated)
 
@@ -343,22 +343,22 @@ Example metrics:
 
 **Check for errors in Drasi Server:**
 ```bash
-grep -i error drasi-server-debug.log
+grep -i error drasi-server.log
 ```
 
 **Check for errors in Test Service:**
 ```bash
-grep -i error test-service-debug.log
+grep -i error test-service.log
 ```
 
 **View source events sent to Drasi:**
 ```bash
-grep "Processing gRPC event" drasi-server-debug.log | head -10
+grep "Processing gRPC event" drasi-server.log | head -10
 ```
 
 **View query results sent to reactions:**
 ```bash
-grep "sending.*results to reactions" drasi-server-debug.log | head -10
+grep "sending.*results to reactions" drasi-server.log | head -10
 ```
 
 ## Modifying the Test
@@ -459,8 +459,8 @@ curl http://localhost:8080/health
 
 **Review logs for errors:**
 ```bash
-tail -50 drasi-server-debug.log
-tail -50 test-service-debug.log
+tail -50 drasi-server.log
+tail -50 test-service.log
 ```
 
 **Common issues:**
