@@ -129,11 +129,11 @@ fi
 # Wait a bit more for gRPC source to be fully ready
 sleep 2
 
-# Run the E2E test with debug logging and capture output
-echo -e "${YELLOW}Starting E2E Test Framework (Debug)...${NC}"
+# Run the E2E test with filtered logging and capture output
+echo -e "${YELLOW}Starting E2E Test Framework (Filtered Debug)...${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
-RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
+RUST_LOG=info,data_collector=debug,test_run_host=debug,test_data_store=debug,test_service=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
     --config "$SCRIPT_DIR/test-service-config.yaml" \
     --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 
