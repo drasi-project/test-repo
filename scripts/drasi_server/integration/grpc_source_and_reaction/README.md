@@ -64,6 +64,23 @@ Use this test to verify that changes to Drasi Server and Drasi Core haven't brok
 └─────────────────────┘
 ```
 
+## Test Definition
+
+This test uses a test definition file that is **automatically downloaded** from the Drasi Test Repo on GitHub when the test runs. The Test Service fetches the test definition from the Drasi test repository, which contains the actual test parameters including:
+
+- Number of change events to generate
+- Building hierarchy size (buildings, floors, rooms)
+- Sensor configuration (temperature, CO2, humidity)
+- Change intervals and timing
+- Stop triggers
+
+**Test Definition Location:**
+- Repository: `drasi-project/test-repo`
+- Branch: `main`
+- File: [`dev_repo/drasi_server/integration/building_comfort_grpc.test`](https://github.com/drasi-project/test-repo/blob/query-host/dev_repo/drasi_server/integration/building_comfort_grpc.test)
+
+The test definition is specified in `test-service-config.yaml` under the `test_id` field (`building_comfort_grpc`). The Test Service will fetch this file from GitHub at runtime, so you don't need to manually download it.
+
 ## Prerequisites
 
 This test requires the following sibling repositories:
@@ -155,7 +172,19 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 ## Configuration Details
 
-The configuration files that drive this test are YAML files and contain extensive comments explaining each section and the options you have to change the test behavior.
+The test behavior is controlled by two YAML configuration files:
+
+- **`drasi-server-config.yaml`**: Configures Drasi Server including sources, queries, reactions, connection settings, retry policies, and batching parameters
+- **`test-service-config.yaml`**: Configures the E2E Test Framework including test repository settings, test run parameters, and output loggers
+
+**Both files contain extensive inline comments** explaining each configuration option and how to modify test behavior. Please refer to the YAML files directly for detailed documentation on:
+
+- Available configuration options
+- Valid values and formats
+- Examples of different test scenarios
+- Performance tuning parameters
+
+To understand what each configuration controls, open the YAML files in your editor and read the comments.
 
 ## Ports Used
 
@@ -207,12 +236,12 @@ The source is configured to log all generated source change events and to calcul
 
 Source change events are logged to:
 ```
-test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/building-comfort-grpc/source_output/source_events_*.log
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/facilities-db/source_output/source_events_*.log
 ```
 
 Source performance metrics are saved to:
 ```
-test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/building-comfort-grpc/source_output/performance_metrics/performance_metrics_*.json
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/facilities-db/source_output/performance_metrics/performance_metrics_*.json
 ```
 
 Example metrics:
@@ -237,12 +266,12 @@ The reaction is configured to log all received query result events and to calcul
 
 Reaction result events are logged to:
 ```
-test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort-grpc/reaction_output/reaction_events_*.log
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort/reaction_output/reaction_events_*.log
 ```
 
 Reaction performance metrics are saved to:
 ```
-test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort-grpc/reaction_output/performance_metrics/performance_metrics_*.json
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort/reaction_output/performance_metrics/performance_metrics_*.json
 ```
 
 Example metrics:
@@ -300,4 +329,106 @@ curl http://localhost:8080/health
 ```bash
 tail -50 drasi-server.log
 tail -50 test-service.log
+```
+
+### Missing Sibling Repositories
+
+**Symptom:**
+```
+Error: Drasi Server not found at: /path/to/drasi-server
+Error: E2E Test Framework not found at: /path/to/e2e-test-framework
+```
+
+**Solution:**
+Ensure the required repositories are cloned as siblings to this repository:
+```bash
+cd /path/to/parent/
+git clone https://github.com/drasi-project/drasi-server.git
+git clone https://github.com/drasi-project/drasi-test-infra.git
+```
+
+Verify the directory structure matches:
+```
+parent/
+  drasi-server/
+  drasi-test-infra/
+    e2e-test-framework/
+  drasi-test-repo/
+```
+
+### Drasi Server Build Failures
+
+**Symptom:**
+```
+Building Drasi Server...
+error: could not compile `drasi-server`...
+```
+
+**Solution:**
+1. Verify Rust toolchain is installed: `rustc --version`
+2. Update Rust if needed: `rustup update`
+3. Check for compilation errors in the drasi-server repository
+4. Try a clean build:
+   ```bash
+   cd ../../../../../drasi-server
+   cargo clean
+   cargo build
+   ```
+
+### Health Check Timeout
+
+**Symptom:**
+```
+Waiting for Drasi Server to be ready...
+Error: Drasi Server did not become healthy within 30 seconds
+```
+
+**Solution:**
+1. Check if Drasi Server process is running: `ps aux | grep drasi-server`
+2. Review drasi-server.log for startup errors: `tail -100 drasi-server.log`
+3. Verify port 8080 is not blocked by firewall
+4. Try manual health check: `curl http://localhost:8080/health`
+5. If the server is starting slowly, increase the timeout in `start.sh` (line ~120)
+
+### GitHub Test Definition Fetch Failures
+
+**Symptom:**
+```
+Error: Failed to fetch test definition from GitHub
+Error: Repository not found or access denied
+```
+
+**Solution:**
+1. Check internet connectivity
+2. Verify the GitHub repository is accessible: https://github.com/drasi-project/test-repo
+3. Check the branch exists: `query-host`
+4. Verify the test file exists at: `dev_repo/drasi_server/integration/building_comfort_grpc.test`
+5. If using a private repository, ensure authentication is configured
+
+### Manual Cleanup
+
+If automatic cleanup fails, manually clean up resources:
+
+**Kill all test processes:**
+```bash
+pkill -9 drasi-server
+pkill -9 test-service
+```
+
+**Free all test ports:**
+```bash
+lsof -ti:8080 | xargs kill -9
+lsof -ti:50051 | xargs kill -9
+lsof -ti:50052 | xargs kill -9
+lsof -ti:63123 | xargs kill -9
+```
+
+**Remove test data:**
+```bash
+rm -rf test_data_store/
+```
+
+**Remove log files:**
+```bash
+rm -f drasi-server.log test-service.log
 ```
