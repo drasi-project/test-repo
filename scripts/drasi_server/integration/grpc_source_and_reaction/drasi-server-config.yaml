@@ -50,8 +50,9 @@ queries:
       r.temperature, r.humidity, r.co2             
 
   # Data Sources
-  sources:                                         # Which sources feed this query
-  - facilities-db
+  source_subscriptions:                            # Which sources feed this query
+    - source_id: facilities-db
+      pipeline: []
 
 # Reactions
 # Define how and where to send query results
