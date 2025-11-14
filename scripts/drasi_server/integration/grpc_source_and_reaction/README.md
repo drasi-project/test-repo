@@ -1,6 +1,6 @@
 # Drasi Server gRPC Integration Test
 
-This is a self-contained integration test for Drasi Server that validates the complete end-to-end data flow using gRPC source and reaction endpoints.
+This is a self-contained integration test the uses the E2E Test Framework to test Drasi Server. The test validates the complete end-to-end data flow using gRPC source and reaction endpoints.
 
 ## Purpose
 
@@ -11,7 +11,7 @@ This test validates:
 - **Building Comfort Model**: Synthetic sensor data generation (temperature, CO2, humidity)
 - **Performance**: End-to-end throughput and latency measurement
 
-Use this test to verify that changes to Drasi Server haven't broken the core gRPC integration pathways.
+Use this test to verify that changes to Drasi Server and Drasi Core haven't broken the gRPC integration pathways.
 
 ## Architecture
 
@@ -64,6 +64,23 @@ Use this test to verify that changes to Drasi Server haven't broken the core gRP
 └─────────────────────┘
 ```
 
+## Test Definition
+
+This test uses a test definition file that is **automatically downloaded** from the Drasi Test Repo on GitHub when the test runs. The Test Service fetches the test definition from the Drasi test repository, which contains the actual test parameters including:
+
+- Number of change events to generate
+- Building hierarchy size (buildings, floors, rooms)
+- Sensor configuration (temperature, CO2, humidity)
+- Change intervals and timing
+- Stop triggers
+
+**Test Definition Location:**
+- Repository: `drasi-project/test-repo`
+- Branch: `main`
+- File: [`dev_repo/drasi_server/integration/building_comfort_grpc.test`](https://github.com/drasi-project/test-repo/blob/query-host/dev_repo/drasi_server/integration/building_comfort_grpc.test)
+
+The test definition is specified in `test-service-config.yaml` under the `test_id` field (`building_comfort_grpc`). The Test Service will fetch this file from GitHub at runtime, so you don't need to manually download it.
+
 ## Prerequisites
 
 This test requires the following sibling repositories:
@@ -77,9 +94,14 @@ parent/
   drasi-test-repo/       # This repository
 ```
 
-The test scripts automatically navigate to these directories using relative paths.
+The test scripts automatically navigate to these directories using relative paths when you run the test from the folder containing this README file.
 
 ## Quick Start
+
+Open a terminal and navigate to the directory containing this README:
+
+```bash
+cd scripts/drasi_server/integration/grpc_source_and_reaction
 
 ### Run the Test
 
@@ -139,8 +161,8 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 | File | Content |
 |------|---------|
-| `drasi-server-debug.log` | Drasi Server debug logs (RUST_LOG=debug) |
-| `test-service-debug.log` | E2E Test Framework debug logs (RUST_LOG=debug) |
+| `drasi-server.log` | Drasi Server logs (RUST_LOG=debug) |
+| `test-service.log` | E2E Test Framework logs (RUST_LOG=debug) |
 
 ### Data Directory (Generated)
 
@@ -150,111 +172,19 @@ This gracefully terminates all processes and cleans up ports. Run this if:
 
 ## Configuration Details
 
-### drasi-server-config.yaml
+The test behavior is controlled by two YAML configuration files:
 
-Configures Drasi Server with three main sections:
+- **`drasi-server-config.yaml`**: Configures Drasi Server including sources, queries, reactions, connection settings, retry policies, and batching parameters
+- **`test-service-config.yaml`**: Configures the E2E Test Framework including test repository settings, test run parameters, and output loggers
 
-**Server Configuration:**
-```yaml
-server:
-  host: 0.0.0.0
-  port: 8080                    # Health check and Web API
-  log_level: drasi_server=info,drasi_core=warn
-  disable_persistence: true     # No disk persistence needed for tests
-```
+**Both files contain extensive inline comments** explaining each configuration option and how to modify test behavior. Please refer to the YAML files directly for detailed documentation on:
 
-**Source Configuration:**
-```yaml
-sources:
-- id: facilities-db
-  source_type: grpc
-  auto_start: true              # Start when server starts
-  port: 50051                   # gRPC source endpoint
-  max_message_size: 8388608     # 8MB max message
-  max_connections: 100
-  keepalive_interval_seconds: 10
-  keepalive_timeout_seconds: 10
-```
+- Available configuration options
+- Valid values and formats
+- Examples of different test scenarios
+- Performance tuning parameters
 
-**Query Configuration:**
-```yaml
-queries:
-- id: building-comfort
-  query: |
-    MATCH (r:Room)
-    RETURN elementId(r) AS RoomId,
-           r.temperature, r.humidity, r.co2
-  sources:
-  - facilities-db
-  auto_start: true
-```
-
-**Reaction Configuration:**
-```yaml
-reactions:
-- id: rooms-grpc
-  reaction_type: grpc
-  queries:
-  - building-comfort
-  auto_start: true
-  endpoint: http://127.0.0.1:50052
-  batch_size: 1000
-  batch_flush_timeout_ms: 100
-  max_retries: 3
-  timeout_ms: 5000
-  metadata:
-    x-api-key: test-key-12345
-    x-client-id: drasi-test
-```
-
-### test-service-config.yaml
-
-Configures the E2E Test Framework to use a test definition from GitHub:
-
-**Data Store and Test Repositories:**
-```yaml
-data_store:
-  data_store_path: ./test_data_cache    # Overridden by --data flag
-  delete_on_start: true                 # Clean cache on start
-  delete_on_stop: true                  # Clean cache on stop
-
-  # Test Repository Configuration (nested under data_store)
-  test_repos:
-    - id: github_dev_repo
-      kind: GitHub                      # Fetch test from GitHub
-      owner: drasi-project
-      repo: test-repo
-      branch: query-host
-      force_cache_refresh: false        # Use cached test if available
-      root_path: dev_repo/drasi_server/integration
-```
-
-The test definition is loaded from:
-`dev_repo/drasi_server/integration/building_comfort_grpc.test`
-
-This test file defines:
-- **Data Generator**: BuildingHierarchy model (1 building, 1 floor, 1 room)
-- **Change Events**: 1,000 sensor updates (temperature, CO2, humidity)
-- **Source Dispatcher**: gRPC to localhost:50051
-- **Reaction Handler**: gRPC on 0.0.0.0:50052
-- **Stop Trigger**: RecordCount of 1,000 results
-
-**Test Run Configuration:**
-```yaml
-test_run_host:
-  test_runs:
-    - test_id: building_comfort_grpc    # References the test file
-      test_repo_id: github_dev_repo
-      test_run_id: test_run_001
-      sources:
-        - test_source_id: facilities-db
-          start_mode: auto              # Start immediately
-      reactions:
-        - test_reaction_id: building-comfort
-          start_immediately: true
-          output_loggers:
-            - kind: PerformanceMetrics  # Log performance data
-```
+To understand what each configuration controls, open the YAML files in your editor and read the comments.
 
 ## Ports Used
 
@@ -263,6 +193,7 @@ test_run_host:
 | 8080 | Drasi Server API | Incoming | Health checks, Web API for inspection |
 | 50051 | gRPC Source | Incoming | E2ETF → Drasi (data changes) |
 | 50052 | gRPC Reaction | Outgoing | Drasi → E2ETF (query results) |
+| 63123 | E2E Test Framework API | Incoming | Web API for test control |
 
 ## Inspecting Running Tests
 
@@ -270,22 +201,13 @@ Both Drasi Server and the E2E Test Framework expose Web APIs for inspection and 
 
 ### Drasi Server Web API (Port 8080)
 
-Use the HTTP files in `../../../utils/drasi_server_web_api/` to interact with Drasi Server:
+Use the HTTP files in `../../../../utils/drasi_server_web_api/` to interact with Drasi Server.
 
-```bash
-# Open in VS Code with REST Client extension
-code ../../../utils/drasi_server_web_api/web_api.http
-```
-
-**Available Operations:**
-- **Health Check**: `GET http://localhost:8080/health`
-- **List Sources**: `GET http://localhost:8080/sources`
-- **List Queries**: `GET http://localhost:8080/queries`
-- **List Reactions**: `GET http://localhost:8080/reactions`
-- **Query Details**: `GET http://localhost:8080/queries/{query_id}`
-- **Reaction Details**: `GET http://localhost:8080/reactions/{reaction_id}`
-
-See `../../../utils/drasi_server_web_api/` for more operations (start/stop/pause sources, queries, and reactions).
+Open the folder in VS Code and use the REST Client extension to send requests. The four files available are:
+- `web_api.http`: General Drasi Server API operations
+- `web_aoi_source.http`: Source management operations
+- `web_api_query.http`: Query management operations
+- `web_api_reaction.http`: Reaction management operations
 
 ### E2E Test Service Web API (Optional)
 
@@ -304,119 +226,65 @@ Once enabled, you can use the HTTP files in `../../../utils/test_service_web_api
 
 See `../../../utils/test_service_web_api/README.md` for detailed API documentation.
 
-### Using the HTTP Files
-
-1. **Install REST Client extension** in VS Code:
-   - Open Extensions (Cmd+Shift+X / Ctrl+Shift+X)
-   - Search for "REST Client"
-   - Install the extension by Huachao Mao
-
-2. **Open an HTTP file** from the utils folders
-
-3. **Click "Send Request"** above any HTTP request to execute it
-
-4. **View the response** in a new editor pane
-
 ## Viewing Test Results
 
-### Performance Metrics
+The Test Service generates logs and performance metrics in the `test_data_store/` directory.
 
-After a successful test run, performance metrics are saved to:
+### Source Output
+
+The source is configured to log all generated source change events and to calculate performance metrics at the end of the test run.
+
+Source change events are logged to:
 ```
-test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort/output_log/performance_metrics/performance_metrics_*.json
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/facilities-db/source_output/source_events_*.log
+```
+
+Source performance metrics are saved to:
+```
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/sources/facilities-db/source_output/performance_metrics/performance_metrics_*.json
 ```
 
 Example metrics:
 ```json
 {
-  "start_time_ns": 1762662358612275000,
-  "end_time_ns": 1762662358641108000,
-  "duration_ns": 28833000,
-  "record_count": 1000,
-  "records_per_second": 34682.48,
-  "test_run_reaction_id": "github_dev_repo.building_comfort_grpc.test_run_001.building-comfort",
-  "timestamp": "2025-11-09T04:25:58.641111Z"
+  "actual_end_time": "2025-11-14T00:15:39.350777Z",
+  "actual_end_time_ns": 1763079339350777000,
+  "actual_start_time": "2025-11-14T00:15:38.277528Z",
+  "actual_start_time_ns": 1763079338277528000,
+  "num_skipped_source_events": 0,
+  "num_source_change_events": 1000,
+  "processing_rate": 931.7502275799932,
+  "run_duration_ns": 1073249000,
+  "run_duration_sec": 1.073249,
+  "test_run_source_id": "github_dev_repo.building_comfort_grpc.test_run_001.facilities-db"
 }
 ```
 
-### Log Analysis
+### Reaction Output
 
-**Check for errors in Drasi Server:**
-```bash
-grep -i error drasi-server-debug.log
+The reaction is configured to log all received query result events and to calculate performance metrics at the end of the test run.
+
+Reaction result events are logged to:
+```
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort/reaction_output/reaction_events_*.log
 ```
 
-**Check for errors in Test Service:**
-```bash
-grep -i error test-service-debug.log
+Reaction performance metrics are saved to:
+```
+test_data_store/test_runs/github_dev_repo.building_comfort_grpc.test_run_001/reactions/building-comfort/reaction_output/performance_metrics/performance_metrics_*.json
 ```
 
-**View source events sent to Drasi:**
-```bash
-grep "Processing gRPC event" drasi-server-debug.log | head -10
-```
-
-**View query results sent to reactions:**
-```bash
-grep "sending.*results to reactions" drasi-server-debug.log | head -10
-```
-
-## Modifying the Test
-
-### Change Test Size
-
-To test with more data, edit the test definition file in the GitHub repository:
-`dev_repo/drasi_server/integration/building_comfort_grpc.test`
-
-```yaml
-# In the sources section, under model_data_generator:
-room_count: [10, 0]              # 10 rooms instead of 1
-change_count: 10000              # 10,000 changes instead of 1,000
-```
-
-**Important:** Also update the stop trigger to match:
-```yaml
-# In the reactions section:
-stop_triggers:
-  - kind: RecordCount
-    record_count: 10000          # Must match change_count
-```
-
-After modifying the test file, set `force_cache_refresh: true` in `test-service-config.yaml` to fetch the latest version from GitHub.
-
-### Change Query
-
-Edit `drasi-server-config.yaml` to modify the Cypher query:
-
-```yaml
-queries:
-- id: building-comfort
-  query: |
-    MATCH (r:Room)
-    WHERE r.temperature > 5500
-    RETURN elementId(r) AS RoomId,
-           r.temperature, r.humidity, r.co2
-```
-
-### Use Release Build
-
-For performance testing, edit `start.sh` line 82:
-
-```bash
-# Change from:
-cargo build
-
-# To:
-cargo build --release
-```
-
-And update line 102:
-```bash
-# Change from:
-RUST_LOG=debug ./target/debug/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
-
-# To:
-./target/release/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
+Example metrics:
+```json
+{
+  "start_time_ns": 1763079339399046000,
+  "end_time_ns": 1763079339444751000,
+  "duration_ns": 45705000,
+  "record_count": 1000,
+  "records_per_second": 21879.44426211574,
+  "test_run_reaction_id": "github_dev_repo.building_comfort_grpc.test_run_001.building-comfort",
+  "timestamp": "2025-11-14T00:15:39.444753Z"
+}
 ```
 
 ## Troubleshooting
@@ -459,87 +327,108 @@ curl http://localhost:8080/health
 
 **Review logs for errors:**
 ```bash
-tail -50 drasi-server-debug.log
-tail -50 test-service-debug.log
+tail -50 drasi-server.log
+tail -50 test-service.log
 ```
 
-**Common issues:**
-- **gRPC connection failed**: Check if ports 50051/50052 are actually listening
-- **Query not processing**: Check query syntax in `drasi-server-config.yaml`
-- **Test hangs at completion**: Check stop trigger `record_count` matches `change_count`
+### Missing Sibling Repositories
 
-### Build Failures
+**Symptom:**
+```
+Error: Drasi Server not found at: /path/to/drasi-server
+Error: E2E Test Framework not found at: /path/to/e2e-test-framework
+```
 
-**Drasi Server build fails:**
+**Solution:**
+Ensure the required repositories are cloned as siblings to this repository:
 ```bash
-# Navigate to drasi-server and build manually
-cd ../../../../../drasi-server
-cargo clean
-cargo build
+cd /path/to/parent/
+git clone https://github.com/drasi-project/drasi-server.git
+git clone https://github.com/drasi-project/drasi-test-infra.git
 ```
 
-**E2E Test Framework build fails:**
+Verify the directory structure matches:
+```
+parent/
+  drasi-server/
+  drasi-test-infra/
+    e2e-test-framework/
+  drasi-test-repo/
+```
+
+### Drasi Server Build Failures
+
+**Symptom:**
+```
+Building Drasi Server...
+error: could not compile `drasi-server`...
+```
+
+**Solution:**
+1. Verify Rust toolchain is installed: `rustc --version`
+2. Update Rust if needed: `rustup update`
+3. Check for compilation errors in the drasi-server repository
+4. Try a clean build:
+   ```bash
+   cd ../../../../../drasi-server
+   cargo clean
+   cargo build
+   ```
+
+### Health Check Timeout
+
+**Symptom:**
+```
+Waiting for Drasi Server to be ready...
+Error: Drasi Server did not become healthy within 30 seconds
+```
+
+**Solution:**
+1. Check if Drasi Server process is running: `ps aux | grep drasi-server`
+2. Review drasi-server.log for startup errors: `tail -100 drasi-server.log`
+3. Verify port 8080 is not blocked by firewall
+4. Try manual health check: `curl http://localhost:8080/health`
+5. If the server is starting slowly, increase the timeout in `start.sh` (line ~120)
+
+### GitHub Test Definition Fetch Failures
+
+**Symptom:**
+```
+Error: Failed to fetch test definition from GitHub
+Error: Repository not found or access denied
+```
+
+**Solution:**
+1. Check internet connectivity
+2. Verify the GitHub repository is accessible: https://github.com/drasi-project/test-repo
+3. Check the branch exists: `query-host`
+4. Verify the test file exists at: `dev_repo/drasi_server/integration/building_comfort_grpc.test`
+5. If using a private repository, ensure authentication is configured
+
+### Manual Cleanup
+
+If automatic cleanup fails, manually clean up resources:
+
+**Kill all test processes:**
 ```bash
-# Navigate to e2e-test-framework and build manually
-cd ../../../../../drasi-test-infra/e2e-test-framework
-cargo clean
-cargo build --manifest-path ./test-service/Cargo.toml
+pkill -9 drasi-server
+pkill -9 test-service
 ```
 
-### Test Data Cache Issues
+**Free all test ports:**
+```bash
+lsof -ti:8080 | xargs kill -9
+lsof -ti:50051 | xargs kill -9
+lsof -ti:50052 | xargs kill -9
+lsof -ti:63123 | xargs kill -9
+```
 
-If you encounter cache-related errors or want a clean slate:
+**Remove test data:**
 ```bash
 rm -rf test_data_store/
-./start.sh
 ```
 
-The test automatically cleans `test_data_store/` on start and stop (configured via `delete_on_start` and `delete_on_stop` in `test-service-config.yaml`).
-
-## Advanced Usage
-
-### Running in Background
-
-To run the test in the background and monitor via logs:
+**Remove log files:**
 ```bash
-./start.sh > test-output.log 2>&1 &
-tail -f test-output.log
+rm -f drasi-server.log test-service.log
 ```
-
-### Custom Test Data Path
-
-The `start.sh` script passes `--data ./test_data_store` to the test-service. To use a different location, modify line 138 in `start.sh`:
-
-```bash
-RUST_LOG=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
-    --config "$SCRIPT_DIR/test-service-config.yaml" \
-    --data "/path/to/custom/data/dir" > "$TEST_SERVICE_LOG" 2>&1
-```
-
-### Integration with CI/CD
-
-The test returns exit code 0 on success, non-zero on failure:
-
-```bash
-#!/bin/bash
-cd scripts/drasi_server/integration/grpc_source_and_reaction
-./start.sh
-if [ $? -eq 0 ]; then
-    echo "Integration test passed"
-    exit 0
-else
-    echo "Integration test failed"
-    exit 1
-fi
-```
-
-## Related Tests
-
-- `../grpc_adaptive_source_and_reaction/` - Tests adaptive batching with gRPC sources
-
-## Related Documentation
-
-- [Drasi Server Web API Utilities](../../../utils/drasi_server_web_api/)
-- [E2E Test Framework Web API Utilities](../../../utils/test_service_web_api/)
-- [E2E Test Framework Documentation](https://github.com/drasi-project/drasi-test-infra)
-- [Drasi Server Documentation](https://github.com/drasi-project/drasi-server)

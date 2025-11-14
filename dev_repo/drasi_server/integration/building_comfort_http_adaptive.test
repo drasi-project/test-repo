@@ -15,7 +15,7 @@ sources:
     source_change_dispatchers:
       - source_id: facilities-db                  # Target source ID in Drasi Server
         kind: Http                                # Send via Http
-        url: localhost                            # Drasi Server URL
+        url: http://localhost                     # Drasi Server URL
         port: 9000                                # Http source port
         timeout_seconds: 60                       # Request timeout
         batch_events: true                        # Send events in batches
@@ -88,9 +88,10 @@ reactions:
     # Http Result Handler
     output_handler:
       kind: Http                                  # Receive results via Http
+      host: 0.0.0.0                               # Listen on all interfaces
       port: 9001                                  # Http reaction port
       path: /reaction                             # Http reaction path
-      correlation_metadata_key: x-query-sequence  # Metadata key for query correlation
+      correlation_header: x-query-sequence        # Metadata key for query correlation
 
     # Test Completion Triggers
     stop_triggers:

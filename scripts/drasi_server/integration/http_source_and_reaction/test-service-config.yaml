@@ -19,7 +19,7 @@ data_store:
       repo: test-repo                             # GitHub repository name
       branch: query-host                          # Git branch to use
       root_path: dev_repo/drasi_server/integration # Path within repo to test files
-      force_cache_refresh: false                  # Use cached test if available
+      force_cache_refresh: true                  # Use cached test if available
       # Set to true to always fetch latest from GitHub:
       # force_cache_refresh: true
 

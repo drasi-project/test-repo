@@ -76,5 +76,5 @@ fi
 echo -e "${GREEN}All processes stopped${NC}"
 echo ""
 echo "Log files (if any) are preserved at:"
-echo "  - drasi-server-debug.log"
-echo "  - test-service-debug.log"
+echo "  - drasi-server.log"
+echo "  - test-service.log"
