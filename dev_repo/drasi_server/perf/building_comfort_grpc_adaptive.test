@@ -35,7 +35,7 @@ sources:
         - 500000000                               # 
         - 4000000000                              # 
 
-      change_count: 50000                        # Total number of change events to generate
+      change_count: 1000000                       # Total number of change events to generate
       seed: 123456789                             # RNG seed for reproducibility of test data
       spacing_mode: none                          # No spacing between events (as fast as possible)
       time_mode: "2025-01-03T10:03:15.4Z"         # Starting timestamp for events
@@ -97,4 +97,4 @@ reactions:
     # Test Completion Triggers
     stop_triggers:
       - kind: RecordCount                         # Stop after receiving N results
-        record_count: 50000                      # Must match change_count above
+        record_count: 1000000                     # Must match change_count above
