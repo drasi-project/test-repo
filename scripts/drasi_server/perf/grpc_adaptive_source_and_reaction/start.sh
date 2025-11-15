@@ -9,7 +9,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Drasi Server Test - gRPC (Debug Mode)${NC}"
+echo -e "${GREEN}Starting Drasi Server Test - gRPC ${NC}"
 echo "================================================"
 
 # Get the directory where this script is located
@@ -129,13 +129,13 @@ fi
 # Wait a bit more for gRPC source to be fully ready
 sleep 2
 
-# Run the E2E test with error logging and capture output
-echo -e "${YELLOW}Starting E2E Test Framework (Debug)...${NC}"
+# Run the E2E test with filtered logging and capture output
+echo -e "${YELLOW}Starting E2E Test Framework ...${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
 RUST_LOG=error cargo run --release --manifest-path ./test-service/Cargo.toml -- \
     --config "$SCRIPT_DIR/test-service-config.yaml" \
-    --data "$SCRIPT_DIR/test_data_store" # > "$TEST_SERVICE_LOG" 2>&1
+    --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 
 TEST_EXIT_CODE=$?
 

@@ -10,8 +10,8 @@ server:
 
 # Core Engine Settings
 server_core:
-  priority_queue_capacity: 10000                   # Default query processing queue capacity
-  broadcast_channel_capacity: 500000             # Result broadcast capacity
+  priority_queue_capacity: 50000                    # Default query processing queue capacity
+  # broadcast_channel_capacity: 500000              # Result broadcast capacity
 
 # Data Sources
 # Define where Drasi Server receives data changes
@@ -30,6 +30,8 @@ sources:
   keepalive_interval_seconds: 10                   # Send keepalive ping interval
   keepalive_timeout_seconds: 10                    # Keepalive timeout before disconnect
 
+  dispatch_mode: channel
+
 # Continuous Queries
 # Define what data transformations to apply and track
 queries:
@@ -45,14 +47,15 @@ queries:
       r.temperature, r.humidity, r.co2             
 
   # Data Sources
-  sources:                                         # Which sources feed this query
-  - facilities-db
-
+  source_subscriptions:                            # Which sources feed this query
+    - source_id: facilities-db
+      pipeline: []
+      
 # Reactions
 # Define how and where to send query results
 reactions:
 - id: rooms-grpc                                   # Unique reaction identifier
-  reaction_type: grpc                              # Reaction type: grpc, grpc_adaptive, etc.
+  reaction_type: grpc_adaptive                              # Reaction type: grpc, grpc_adaptive, etc.
   auto_start: true                                 # Start sending results when server starts
 
   # Query Subscriptions
@@ -62,21 +65,13 @@ reactions:
   # gRPC Endpoint Configuration
   endpoint: http://127.0.0.1:50052                 # Target gRPC server endpoint
 
-  # Batching Settings (Standard)
-  batch_size: 1000                                 # Max results per batch
-  batch_flush_timeout_ms: 100                      # Max wait time before flushing batch
-
-  # Connection Settings
-  compression: false                               # gRPC compression (set true to enable)
-  keepalive:
-    interval_seconds: 10                           # Keepalive ping interval
-    timeout_seconds: 10                            # Keepalive timeout
-
-  # Retry and Timeout Settings
-  max_retries: 3                                   # Max delivery retry attempts
-  timeout_ms: 5000                                 # Request timeout (5 seconds)
-  retry_delay_ms: 500                              # Delay between retries
-
+  adaptive_max_batch_size: 3000
+  adaptive_min_batch_size: 50
+  adaptive_window_size: 100  # 10 seconds
+  adaptive_batch_timeout_ms: 500
+  timeout_ms: 15000
+  max_retries: 5
+  
   # Custom Metadata Headers
   metadata:                                        # Custom gRPC metadata headers
     x-api-key: test-key-12345                      # Example: API key
