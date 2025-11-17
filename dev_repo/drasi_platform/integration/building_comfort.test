@@ -1,6 +1,6 @@
 test_id: building_comfort
 version: 1
-description: Small Building Comfort Model
+description: Building Comfort Model
 test_folder: building_comfort
 
 # Data sources that feed into the Drasi system
@@ -12,11 +12,10 @@ sources:
 
     # How change events are delivered to Drasi
     source_change_dispatchers:
-      # Using Dapr pubsub for event delivery
-      - kind: Dapr
-        host: 127.0.0.1
-        port: 3500
-        pubsub_name: drasi-pubsub
+      # Using Redis for event delivery
+      - kind: RedisStream
+        host: drasi-redis
+        port: 6379
 
     # Configuration for synthetic data generation
     model_data_generator:
@@ -24,7 +23,7 @@ sources:
       kind: BuildingHierarchy
 
       # Total number of change events to generate during the test
-      change_count: 100000
+      change_count: 1000
 
       # Time intervals (in nanoseconds) between change events
       # Array defines different interval patterns: [2s, 0.5s, 0.5s, 4s]
@@ -41,7 +40,7 @@ sources:
       spacing_mode: none
 
       # Start time for generated timestamps
-      time_mode: "2025-03-01T10:00:00.0Z"
+      time_mode: "live"
 
       # Number of buildings to generate: [count, variance]
       # [1, 0] means exactly 1 building, no variance
@@ -104,5 +103,5 @@ queries:
     stop_trigger:
       # Stop after receiving a specific number of result records
       kind: RecordCount
-      # Stop after 100000 records (matches change_count above)
-      record_count: 100000
+      # Stop after 1000 records (matches change_count above)
+      record_count: 1000
