@@ -14,13 +14,13 @@ sources:
     # Optional: Bootstrap data generator (loads initial state)
     bootstrap_data_generator:
       kind: Script
-      script_file_folder: arn_inline_http/bootstrap_scripts       # Folder with bootstrap JSONL files
+      script_file_folder: bootstrap_scripts       # Folder with bootstrap JSONL files
       time_mode: recorded                         # Use timestamps from bootstrap files
 
     # Source change generator (replays change events)
     source_change_generator:
       kind: Script
-      script_file_folder: arn_inline_http/source_change_scripts   # Folder with change event JSONL files
+      script_file_folder: source_change_scripts   # Folder with change event JSONL files
       spacing_mode: none                          # Send events as fast as possible
       time_mode: live                             # Use current time for events
       ignore_scripted_pause_commands: false       # Honor pause commands in scripts
