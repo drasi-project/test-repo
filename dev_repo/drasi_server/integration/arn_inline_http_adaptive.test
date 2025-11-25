@@ -1,0 +1,67 @@
+# ARN Inline Adaptive HTTP Integration Test
+# Tests Drasi Server with script-based test data via adaptive HTTP Source and Reaction
+test_id: arn_inline_http_adaptive                 # Unique test identifier
+version: 1                                        # Test definition version
+description: "ARN inline test using script-based data from JSONL files via adaptive HTTP"
+test_folder: arn_inline_scripts                   # Folder for resources used by the test
+
+# Data Sources
+# Defines how test data is loaded and delivered to Drasi Server during the test
+sources:
+  - test_source_id: arn-db                        # Unique ID for the Source
+    kind: Script                                  # Use script-based data replay
+
+    # Optional: Bootstrap data generator (loads initial state)
+    bootstrap_data_generator:
+      kind: Script
+      script_file_folder: bootstrap_scripts       # Folder with bootstrap JSONL files
+      time_mode: recorded                         # Use timestamps from bootstrap files
+
+    # Source change generator (replays change events)
+    source_change_generator:
+      kind: Script
+      script_file_folder: source_change_scripts   # Folder with change event JSONL files
+      spacing_mode: none                          # Send events as fast as possible
+      time_mode: live                             # Use current time for events
+      ignore_scripted_pause_commands: false       # Honor pause commands in scripts
+
+    # How to send data to Drasi Server
+    source_change_dispatchers:
+      - kind: Http                                # Send via HTTP
+        source_id: arn-db                         # Target source ID in Drasi Server
+        url: http://localhost                     # Drasi Server URL
+        port: 9000                                # HTTP source port
+        timeout_seconds: 60                       # Request timeout
+        batch_events: true                        # Send events in batches (adaptive)
+        adaptive_enabled: true                    # Enable adaptive batch sizing
+        batch_size: 1000                          # Initial batch size
+        batch_timeout_ms: 50                      # Initial batch flush timeout
+      - kind: JsonlFile                           # Log events to JSONL files for debugging
+        max_events_per_file: 5000
+
+    # Query Subscriptions
+    subscribers:                                  # Which queries consume this source data
+      - node_id: default                          # Default node (single-node deployment)
+        query_id: arn-inline                      # Query ID in Drasi Server
+
+# Queries
+# Defines the Queries the Test Service will monitor for output during the test
+queries: [] # This test monitors Reaction output only
+
+# Reactions
+# Defines the Reactions the Test Service will monitor for output during the test
+reactions:
+  - test_reaction_id: arn-inline-reaction         # Matches reaction ID in server-config.yaml
+
+    # HTTP Result Handler
+    output_handler:
+      kind: Http                                  # Receive results via HTTP
+      host: 0.0.0.0                               # Listen on all interfaces
+      port: 9001                                  # HTTP reaction port
+      path: /reaction                             # HTTP reaction path
+      correlation_header: x-query-sequence        # Metadata key for query correlation
+
+    # Test Completion Triggers
+    stop_triggers:
+      - kind: RecordCount                         # Stop after receiving N results
+        record_count: 2000                        # Must match number of source change events
