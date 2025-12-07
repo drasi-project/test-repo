@@ -12,7 +12,7 @@ data_store:
     # Local Test Repository (reads test definitions from local filesystem)
     - id: local_dev_repo                          # Unique repository identifier
       kind: LocalStorage                          # Repository type: LocalStorage (no GitHub rate limits)
-      source_path: /Users/ruokunniu/Documents/drasi-e2e-test/test-repo/dev_repo/drasi_server/perf # Absolute path to test files
+      source_path: <path-to-arn-test-config-file> 
 
 # Test Run Configuration
 test_run_host:
