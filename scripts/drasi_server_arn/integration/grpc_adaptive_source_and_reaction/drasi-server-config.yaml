@@ -36,13 +36,13 @@ queries:
 - id: arn-inline                                   # Unique query identifier for ARN
   auto_start: true                                 # Start processing when server starts
 
-  # Cypher Query Definition
   query: |
     MATCH
-      (r:Room)
+      (m:ManagementGroup)
     RETURN
-      elementId(r) AS RoomId,
-      r.temperature, r.humidity, r.co2
+      elementId(m) as ARNID,
+      m.homeTenantId as HomeTenantId,
+      m.resourceLocation as resourceLocation
 
   # Data Sources
   source_subscriptions:                            # Which sources feed this query
