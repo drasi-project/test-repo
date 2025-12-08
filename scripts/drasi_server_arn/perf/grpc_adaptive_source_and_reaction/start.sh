@@ -9,8 +9,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Drasi Server ARN Performance Test - Adaptive gRPC (Debug Mode)${NC}"
-echo "========================================================================"
+echo -e "${GREEN}Starting Drasi Server ARN Performance Test - gRPC Adaptive (Azure Storage)${NC}"
+echo "==============================================================================="
 
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -76,10 +76,11 @@ pkill -f "drasi-server" 2>/dev/null || true
 pkill -f "test-service.*arn_inline.*drasi_server_arn_perf" 2>/dev/null || true
 sleep 2
 
-# Build Drasi Server in debug mode
-echo -e "${YELLOW}Building Drasi Server (Debug)...${NC}"
+# Build Drasi Server in release mode
+echo -e "${YELLOW}Building Drasi Server (Release)...${NC}"
 cd "$DRASI_SERVER_DIR"
-cargo build
+export ROCKSDB_LIB_DIR=/opt/homebrew/opt/rocksdb/lib
+cargo build --release
 
 # Use the permanent server config file
 CONFIG_FILE="$SCRIPT_DIR/drasi-server-config.yaml"
@@ -97,9 +98,9 @@ if [ -f "$TEST_SERVICE_LOG" ]; then
     rm "$TEST_SERVICE_LOG"
 fi
 
-# Start Drasi Server in background with debug logging
-echo -e "${YELLOW}Starting Drasi Server with debug logging...${NC}"
-RUST_LOG=debug ./target/debug/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
+# Start Drasi Server in background with info logging (no debug)
+echo -e "${YELLOW}Starting Drasi Server with info logging...${NC}"
+RUST_LOG=info ./target/release/drasi-server --config "$CONFIG_FILE" > "$LOG_FILE" 2>&1 &
 DRASI_PID=$!
 echo "Drasi Server PID: $DRASI_PID"
 echo "Drasi Server log: $LOG_FILE"
@@ -129,11 +130,11 @@ fi
 # Wait a bit more for gRPC source to be fully ready
 sleep 2
 
-# Run the E2E test with filtered logging and capture output
-echo -e "${YELLOW}Starting E2E Test Framework (Filtered Debug)...${NC}"
+# Run the E2E test with info logging (no debug) - USING AZURE STORAGE
+echo -e "${YELLOW}Starting E2E Test Framework (Azure Storage, Managed Identity)...${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
-RUST_LOG=info,data_collector=debug,test_run_host=debug,test_data_store=debug,test_service=debug cargo run --manifest-path ./test-service/Cargo.toml -- \
+RUST_LOG=info cargo run --release --manifest-path ./test-service/Cargo.toml -- \
     --config "$SCRIPT_DIR/test-service-config.yaml" \
     --data "$SCRIPT_DIR/test_data_store" > "$TEST_SERVICE_LOG" 2>&1
 

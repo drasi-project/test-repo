@@ -1,5 +1,5 @@
 # E2E Test Framework Test Service Configuration for ARN Adaptive gRPC Performance Test
-# This configuration defines test repositories and test runs for performance testing
+# This configuration uses Azure Storage Blob with Managed Identity authentication
 
 # Data Store Configuration
 data_store:
@@ -9,21 +9,21 @@ data_store:
 
   # Test Repository Definitions
   test_repos:
-    # GitHub Test Repository (fetches test definitions from GitHub)
-    - id: github_dev_repo                         # Unique repository identifier
-      kind: GitHub                                # Repository type: GitHub or Local
-      owner: drasi-project                        # GitHub organization/user
-      repo: test-repo                             # GitHub repository name
-      branch: arn-test                            # Git branch to use
-      root_path: dev_repo/drasi_server/perf       # Path within repo to PERF test files
-      force_cache_refresh: true                   # Always fetch latest from GitHub
+    # Azure Storage Blob Test Repository (fetches test definitions from Azure Storage)
+    - id: azure_perf_repo                         # Unique repository identifier
+      kind: AzureStorageBlob                      # Repository type: Azure Storage Blob
+      account_name: drasidev                      # Azure Storage account name
+      # access_key omitted - will use managed identity authentication
+      container: e2etests                         # Container name
+      root_path: dev_repo                         # Path within container to test files (no trailing slash!)
+      force_cache_refresh: true                   # Always fetch latest from Azure Storage
 
 # Test Run Configuration
 test_run_host:
   test_runs:
     # Test Run Instance
     - test_id: arn_inline_grpc_adaptive           # Test file name (without .test extension)
-      test_repo_id: github_dev_repo               # Which test repository to use
+      test_repo_id: azure_perf_repo               # Which test repository to use
       test_run_id: test_run_001                   # Unique identifier for this test run
 
       # Sources from the Test Definition to include in this test run
