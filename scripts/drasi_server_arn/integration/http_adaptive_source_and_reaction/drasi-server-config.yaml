@@ -1,0 +1,56 @@
+# Drasi Server Configuration for ARN Adaptive HTTP Integration Test
+# This configuration sets up a Drasi Server with HTTP source and reaction endpoints for ARN testing
+
+# Server Settings
+server:
+  host: 0.0.0.0                                    # Listen on all network interfaces
+  port: 8080                                       # Health check and Web API port
+  disable_persistence: true                        # Disables persistence of runtime changes to Drasi Server config
+  log_level: drasi_server=info,drasi_core=warn     # Logging verbosity
+
+# Core Engine Settings
+server_core:
+  priority_queue_capacity: 10000                   # Default query processing queue capacity
+  broadcast_channel_capacity: 500000               # Result broadcast capacity
+
+# Data Sources
+# Define where Drasi Server receives data changes
+sources:
+- kind: http                                       # Source type: http
+  id: arn-db                                       # Unique source identifier for ARN data
+  auto_start: true                                 # Start listening when server starts
+  host: 0.0.0.0                                    # Listen address
+  port: 9000                                       # HTTP source endpoint port
+
+# Continuous Queries
+# Define what data transformations to apply and track
+queries:
+- id: arn-inline                                   # Unique query identifier for ARN
+  auto_start: true                                 # Start processing when server starts
+
+  # Cypher Query Definition
+  query: |
+    MATCH
+      (m:ManagementGroup)
+    RETURN
+      elementId(m) as ARNID,
+      m.homeTenantId as HomeTenantId,
+      m.resourceLocation as resourceLocation
+
+  # Data Sources
+  sources:                                         # Which sources feed this query
+  - source_id: arn-db
+
+# Reactions
+# Define how and where to send query results
+reactions:
+- kind: http                                       # Reaction type: http
+  id: arn-inline-http                              # Unique reaction identifier for ARN
+  auto_start: true                                 # Start sending results when server starts
+
+  # Query Subscriptions
+  queries:                                         # Which queries to subscribe to
+  - arn-inline
+
+  # HTTP Endpoint Configuration
+  base_url: http://127.0.0.1:9001                  # Target HTTP server endpoint
