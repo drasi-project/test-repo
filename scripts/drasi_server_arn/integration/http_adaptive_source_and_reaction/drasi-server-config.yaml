@@ -16,8 +16,8 @@ server_core:
 # Data Sources
 # Define where Drasi Server receives data changes
 sources:
-- id: arn-db                                       # Unique source identifier for ARN data
-  source_type: http                                # Source type: http
+- kind: http                                       # Source type: http
+  id: arn-db                                       # Unique source identifier for ARN data
   auto_start: true                                 # Start listening when server starts
   host: 0.0.0.0                                    # Listen address
   port: 9000                                       # HTTP source endpoint port
@@ -38,15 +38,14 @@ queries:
       m.resourceLocation as resourceLocation
 
   # Data Sources
-  source_subscriptions:                            # Which sources feed this query
-    - source_id: arn-db
-      pipeline: []
+  sources:                                         # Which sources feed this query
+  - source_id: arn-db
 
 # Reactions
 # Define how and where to send query results
 reactions:
-- id: arn-inline-http                              # Unique reaction identifier for ARN
-  reaction_type: http                              # Reaction type: http
+- kind: http                                       # Reaction type: http
+  id: arn-inline-http                              # Unique reaction identifier for ARN
   auto_start: true                                 # Start sending results when server starts
 
   # Query Subscriptions

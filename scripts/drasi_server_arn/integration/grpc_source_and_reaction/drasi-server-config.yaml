@@ -15,8 +15,8 @@ server_core:
 # Data Sources
 # Define where Drasi Server receives data changes
 sources:
-- id: arn-db                                       # Unique source identifier for ARN data
-  source_type: grpc                                # Source type: grpc
+- kind: grpc                                       # Source type: grpc
+  id: arn-db                                       # Unique source identifier for ARN data
   auto_start: true                                 # Start listening when server starts
 
   # gRPC Source Settings
@@ -44,15 +44,14 @@ queries:
       m.homeTenantId as HomeTenantId,
       m.resourceLocation as resourceLocation
   # Data Sources
-  source_subscriptions:                            # Which sources feed this query
-    - source_id: arn-db
-      pipeline: []
+  sources:                                         # Which sources feed this query
+  - source_id: arn-db
 
 # Reactions
 # Define how and where to send query results
 reactions:
-- id: arn-inline-grpc                              # Unique reaction identifier for ARN
-  reaction_type: grpc                              # Reaction type: grpc
+- kind: grpc                                       # Reaction type: grpc
+  id: arn-inline-grpc                              # Unique reaction identifier for ARN
   auto_start: true                                 # Start sending results when server starts
 
   # Query Subscriptions

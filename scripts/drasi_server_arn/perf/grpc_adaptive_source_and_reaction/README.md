@@ -12,7 +12,7 @@ This performance test evaluates Drasi Server's ability to handle high-volume Azu
 
 ## Test Variants
 
-This directory contains two test configurations:
+This directory contains four test configurations:
 
 ### 1. Azure Storage Blob (Default - Recommended)
 Uses Azure Storage with managed identity authentication (no rate limits, fast downloads).
@@ -30,6 +30,12 @@ Uses Azure Storage with managed identity authentication (no rate limits, fast do
 - Run `az login` for local development
 - See [Azure Setup](#azure-storage-setup) below
 
+**Advantages**:
+- ✅ No rate limits
+- ✅ Fast downloads for large datasets (2.5 GB)
+- ✅ Secure (uses managed identity, no access keys)
+- ✅ Production-ready
+
 ### 2. Local Storage
 Uses local filesystem for test data (no network required, no rate limits).
 
@@ -42,6 +48,116 @@ Uses local filesystem for test data (no network required, no rate limits).
 
 **Requirements**:
 - Test data must be present locally in `test-repo/dev_repo/drasi_server/perf/`
+
+**Advantages**:
+- ✅ No network required
+- ✅ No authentication setup needed
+- ✅ Fastest for repeated local testing
+
+### 3. GitHub Storage
+Uses GitHub as the data source (subject to API rate limits).
+
+**Config**: `test-service-config-github.yaml`
+**Script**: `start-github.sh`
+
+```bash
+# Unauthenticated (60 requests/hour - NOT recommended for large datasets)
+./start-github.sh
+
+# Authenticated (5000 requests/hour - recommended)
+export GITHUB_TOKEN='ghp_your_personal_access_token'
+./start-github.sh
+```
+
+**Requirements**:
+- Test data uploaded to GitHub repository
+- Public repository or GitHub personal access token for authentication
+
+**Authentication Setup**:
+To avoid rate limits, create a GitHub personal access token:
+
+1. Go to https://github.com/settings/tokens/new
+2. Give it a name like "Drasi E2E Test"
+3. Set expiration (e.g., 90 days)
+4. Select scopes:
+   - **For public repos**: No scopes required (or select `public_repo` if you prefer)
+   - **For private repos**: Select `repo` (full control of private repositories)
+5. Click "Generate token" and copy the token (starts with `ghp_`)
+6. Export it as an environment variable:
+   ```bash
+   export GITHUB_TOKEN='ghp_your_token_here'
+   ```
+7. Run the test:
+   ```bash
+   ./start-github.sh
+   ```
+
+**Note**: The token is only used for read-only access to the repository contents. For public repositories like `drasi-project/test-repo`, the token just authenticates your identity to increase the rate limit from 60 to 5000 requests/hour.
+
+**Rate Limits**:
+- **Unauthenticated**: 60 requests/hour (will fail for large datasets)
+- **Authenticated**: 5000 requests/hour (sufficient for most tests)
+
+**Limitations**:
+- ⚠️ Subject to GitHub API rate limits (even when authenticated)
+- ⚠️ May fail for very large datasets (1000+ files)
+- ⚠️ Slower downloads compared to Azure Storage
+
+**Note**: GitHub storage is provided for compatibility but is **not recommended** for performance testing with large datasets. Use Azure Storage or Local Storage instead.
+
+### 4. Hugging Face Storage
+Uses Hugging Face Datasets as the data source (ideal for sharing ML test datasets).
+
+**Config**: `test-service-config-huggingface.yaml`
+**Script**: `start-huggingface.sh`
+
+```bash
+# Run the test
+./start-huggingface.sh
+```
+
+**Requirements**:
+- Test data uploaded to a Hugging Face dataset
+- Public dataset or Hugging Face token for authentication
+
+**Authentication Setup**:
+To access private datasets or increase rate limits, create a Hugging Face access token:
+
+1. Go to https://huggingface.co/settings/tokens
+2. Click "New token"
+3. Give it a name like "Drasi E2E Test"
+4. Select token type: "Read" (for read-only access)
+5. Click "Generate token" and copy the token (starts with `hf_`)
+6. Add the token to `test-service-config-huggingface.yaml`:
+   ```yaml
+   token: hf_your_token_here
+   ```
+
+**Configuration**:
+Edit `test-service-config-huggingface.yaml` to point to your dataset:
+```yaml
+test_repos:
+  - id: huggingface_perf_repo
+    kind: HuggingFace
+    organization: drasi-project       # Your Hugging Face organization
+    dataset: drasi-test-data          # Your dataset name
+    revision: main                    # Branch/tag (defaults to "main")
+    root_path: dev_repo               # Path within dataset
+    token: hf_your_token              # Optional token
+```
+
+**Advantages**:
+- ✅ Good for sharing ML/test datasets publicly
+- ✅ Version control with dataset revisions
+- ✅ Simple setup for public datasets
+- ✅ Integration with ML ecosystem
+
+**Limitations**:
+- ⚠️ May have rate limits (check Hugging Face documentation)
+- ⚠️ Network-dependent performance
+- ⚠️ For large datasets, Azure Storage or Local Storage may be faster
+
+**Note**: Hugging Face storage is ideal for sharing test datasets in ML contexts but may not be optimal for very large datasets. Use Azure Storage for production performance testing.
 
 ## Prerequisites
 
