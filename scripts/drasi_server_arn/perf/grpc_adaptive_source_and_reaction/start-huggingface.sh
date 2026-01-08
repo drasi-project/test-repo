@@ -133,7 +133,6 @@ sleep 2
 # Run the E2E test with info logging (no debug) - USING HUGGING FACE STORAGE
 echo -e "${YELLOW}Starting E2E Test Framework (Hugging Face)...${NC}"
 echo -e "${YELLOW}Note: To use authenticated requests, add your Hugging Face token to test-service-config-huggingface.yaml${NC}"
-echo -e "${YELLOW}For large datasets, Azure Storage (./start.sh) is recommended${NC}"
 echo "Test Service log: $TEST_SERVICE_LOG"
 cd "$E2E_ROOT"
 RUST_LOG=info cargo run --release --manifest-path ./test-service/Cargo.toml -- \
